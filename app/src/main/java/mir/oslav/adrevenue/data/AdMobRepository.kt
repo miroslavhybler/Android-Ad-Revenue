@@ -31,11 +31,18 @@ class AdMobRepository @Inject constructor(
         accessToken: String,
     ) {
         val accounts = apiClient.listAccounts(accessToken)
+        val apps = accounts.flatMap { account ->
+            apiClient.listApps(
+                accessToken = accessToken,
+                accountName = account.name,
+            )
+        }
 
         savePersistent(
-            CachedAdMobSnapshot(
+            snapshot = CachedAdMobSnapshot(
                 signedInUser = signedInUser,
                 accounts = accounts,
+                apps = apps,
                 selectedAccountName = null,
                 report = null,
                 refreshedAtEpochMillis = null,
@@ -45,12 +52,19 @@ class AdMobRepository @Inject constructor(
 
     suspend fun refresh(accessToken: String) {
         val current = _snapshot.value
-        val signedInUser = current.signedInUser ?: throw IllegalStateException("The user is not signed in.")
+        val signedInUser =
+            current.signedInUser ?: throw IllegalStateException("The user is not signed in.")
         val accounts = apiClient.listAccounts(accessToken)
         val selectedAccount = chooseSelectedAccount(
             accounts = accounts,
             preferredAccountName = current.selectedAccountName,
         )
+        val apps = selectedAccount?.let {
+            apiClient.listApps(
+                accessToken = accessToken,
+                accountName = it.name
+            )
+        }.orEmpty()
         val report = selectedAccount?.let { account ->
             apiClient.generateNetworkReport(
                 accessToken = accessToken,
@@ -59,9 +73,10 @@ class AdMobRepository @Inject constructor(
         }
 
         savePersistent(
-            current.copy(
+            snapshot = current.copy(
                 signedInUser = signedInUser,
                 accounts = accounts,
+                apps = apps,
                 selectedAccountName = selectedAccount?.name,
                 report = report,
                 refreshedAtEpochMillis = report?.let { System.currentTimeMillis() },
@@ -80,10 +95,12 @@ class AdMobRepository @Inject constructor(
             accessToken = accessToken,
             accountName = account.name,
         )
+        val apps = apiClient.listApps(accessToken = accessToken, accountName = account.name)
 
         savePersistent(
-            current.copy(
+            snapshot = current.copy(
                 selectedAccountName = account.name,
+                apps = apps,
                 report = report,
                 refreshedAtEpochMillis = System.currentTimeMillis(),
             ),
@@ -97,13 +114,14 @@ class AdMobRepository @Inject constructor(
         endDateEpochMillis: Long,
     ): CachedStatisticsReport {
         val accountExists = _snapshot.value.accounts.any { account -> account.name == accountName }
-        require(accountExists) { "Unknown AdMob account." }
+        require(value = accountExists) { "Unknown AdMob account." }
 
         val report = apiClient.generateNetworkReport(
             accessToken = accessToken,
             accountName = accountName,
             startDateEpochMillis = startDateEpochMillis,
             endDateEpochMillis = endDateEpochMillis,
+            includeAppDimension = true,
         )
         val cachedReport = CachedStatisticsReport(
             accountName = accountName,
@@ -118,8 +136,8 @@ class AdMobRepository @Inject constructor(
             addAll(
                 current.statisticsReports.filterNot { cached ->
                     cached.accountName == accountName &&
-                        cached.startDateEpochMillis == startDateEpochMillis &&
-                        cached.endDateEpochMillis == endDateEpochMillis
+                            cached.startDateEpochMillis == startDateEpochMillis &&
+                            cached.endDateEpochMillis == endDateEpochMillis
                 },
             )
         }.take(n = CacheConstants.MaxStatisticsReports)
@@ -128,16 +146,23 @@ class AdMobRepository @Inject constructor(
         return cachedReport
     }
 
+    suspend fun saveAppIconUrl(appId: String, url: String) {
+        savePersistent(
+            snapshot =
+                _snapshot.value.copy(appIconUrls = _snapshot.value.appIconUrls + (appId to url))
+        )
+    }
+
     suspend fun setRevenueTarget(
         accountName: String,
         amountMicros: Long,
         rangeDays: Int,
     ) {
-        require(amountMicros > 0L) { "Revenue target must be greater than zero." }
-        require(rangeDays > 0) { "Revenue target range must be greater than zero." }
+        require(value = amountMicros > 0L) { "Revenue target must be greater than zero." }
+        require(value = rangeDays > 0) { "Revenue target range must be greater than zero." }
 
         val current = _snapshot.value
-        require(current.accounts.any { account -> account.name == accountName }) {
+        require(value = current.accounts.any { account -> account.name == accountName }) {
             "Unknown AdMob account."
         }
         val target = CachedRevenueTarget(
@@ -147,10 +172,10 @@ class AdMobRepository @Inject constructor(
         )
         val updatedTargets = buildList {
             add(element = target)
-            addAll(current.revenueTargets.filterNot { cached -> cached.accountName == accountName })
+            addAll(elements = current.revenueTargets.filterNot { cached -> cached.accountName == accountName })
         }
 
-        savePersistent(current.copy(revenueTargets = updatedTargets))
+        savePersistent(snapshot = current.copy(revenueTargets = updatedTargets))
     }
 
     suspend fun clearRevenueTarget(accountName: String) {

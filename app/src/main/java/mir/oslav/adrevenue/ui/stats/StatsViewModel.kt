@@ -5,17 +5,20 @@ import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
 import java.util.concurrent.CancellationException
 import javax.inject.Inject
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.runningFold
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import mir.oslav.adrevenue.core.network.NetworkMonitor
 import mir.oslav.adrevenue.data.AdMobRepository
 import mir.oslav.adrevenue.data.auth.AdMobAuthSession
@@ -23,6 +26,7 @@ import mir.oslav.adrevenue.data.cache.CachedAdMobSnapshot
 import mir.oslav.adrevenue.data.cache.CachedRevenueTarget
 import mir.oslav.adrevenue.data.cache.CachedStatisticsReport
 import mir.oslav.adrevenue.data.model.AdMobNetworkReport
+import mir.oslav.adrevenue.data.network.PlayStoreIconResolver
 import mir.oslav.adrevenue.ui.UiMessage
 import mir.oslav.adrevenue.ui.UiMessageKind
 
@@ -31,6 +35,7 @@ class StatsViewModel @Inject constructor(
     private val repository: AdMobRepository,
     private val authSession: AdMobAuthSession,
     networkMonitor: NetworkMonitor,
+    private val iconResolver: PlayStoreIconResolver,
 ) : ViewModel() {
     private val selection = MutableStateFlow(StatisticsSelection())
     private val operationState = MutableStateFlow(StatisticsOperationState())
@@ -55,6 +60,23 @@ class StatsViewModel @Inject constructor(
         val period = selectedPeriod.toPeriod()
         val cachedReport = snapshot.findStatisticsReport(period = period)
         val reportRows = cachedReport?.report?.rows.orEmpty()
+        val appMetadata = snapshot.apps.associateBy { app -> app.appId }
+        val appContributions = reportRows
+            .asSequence()
+            .filter { row -> row.appName != null && (row.estimatedEarningsMicros ?: 0L) > 0L }
+            .groupBy { row -> row.appName!! }
+            .map { (appName, rows) ->
+                StatisticsAppContribution(
+                    appName = appName,
+                    appStoreId = rows.firstNotNullOfOrNull { row -> appMetadata[row.appId]?.appStoreId },
+                    iconUrl = rows.firstNotNullOfOrNull { row -> snapshot.appIconUrls[row.appId] },
+                    estimatedEarningsMicros = rows.sumOf { row ->
+                        row.estimatedEarningsMicros ?: 0L
+                    },
+                )
+            }
+            .sortedByDescending { contribution -> contribution.estimatedEarningsMicros }
+            .toList()
         val currencyCode = cachedReport?.report?.currencyCode
             ?.takeIf { code -> code.isNotBlank() }
             ?: snapshot.selectedAccount?.currencyCode.orEmpty()
@@ -84,6 +106,7 @@ class StatsViewModel @Inject constructor(
             chartTimeRange = selectedPeriod.timeRange.takeIf { reportRows.isNotEmpty() },
             chartPeriod = period.takeIf { reportRows.isNotEmpty() },
             chartCurrencyCode = currencyCode,
+            appContributions = appContributions,
             revenueTarget = snapshot.findRevenueTarget(),
         )
     }
@@ -99,6 +122,20 @@ class StatsViewModel @Inject constructor(
         )
 
     init {
+        viewModelScope.launch {
+            isPaneActive
+                .collect { active ->
+                    if (!active) {
+                        operationState.update {
+                            it.copy(
+                                isLoading = false,
+                                needsAuthorization = false,
+                            )
+                        }
+                    }
+                }
+        }
+
         viewModelScope.launch {
             combine(
                 selection
@@ -118,35 +155,33 @@ class StatsViewModel @Inject constructor(
                     isOnline = online,
                     isPaneActive = paneActive,
                 )
-            }.collectLatest { request ->
-                when {
-                    !request.isPaneActive -> operationState.update {
-                        it.copy(
-                            isLoading = false,
-                            needsAuthorization = false,
-                        )
-                    }
-
-                    request.accountName == null -> operationState.value = StatisticsOperationState()
-                    !request.isOnline -> operationState.update {
-                        it.copy(
-                            isLoading = false,
-                            needsAuthorization = false,
-                            message = null,
-                        )
-                    }
-
-                    request.accessToken.isNullOrBlank() -> operationState.update {
-                        it.copy(
-                            isLoading = it.isAuthorizing,
-                            needsAuthorization = !it.isAuthorizing,
-                            message = null,
-                        )
-                    }
-
-                    else -> refreshReport(request = request)
-                }
             }
+                .filter { request -> request.isPaneActive }
+                .distinctUntilChanged()
+                .collectLatest { request ->
+                    when {
+                        request.accountName == null -> operationState.value =
+                            StatisticsOperationState()
+
+                        !request.isOnline -> operationState.update {
+                            it.copy(
+                                isLoading = false,
+                                needsAuthorization = false,
+                                message = null,
+                            )
+                        }
+
+                        request.accessToken.isNullOrBlank() -> operationState.update {
+                            it.copy(
+                                isLoading = it.isAuthorizing,
+                                needsAuthorization = !it.isAuthorizing,
+                                message = null,
+                            )
+                        }
+
+                        else -> refreshReport(request = request)
+                    }
+                }
         }
     }
 
@@ -243,8 +278,8 @@ class StatsViewModel @Inject constructor(
     }
 
     private suspend fun refreshReport(request: StatisticsLoadRequest) {
-        val accountName = checkNotNull(request.accountName)
-        val accessToken = checkNotNull(request.accessToken)
+        val accountName = checkNotNull(value = request.accountName)
+        val accessToken = checkNotNull(value = request.accessToken)
         operationState.update {
             it.copy(
                 isLoading = true,
@@ -255,12 +290,26 @@ class StatsViewModel @Inject constructor(
         }
 
         try {
-            repository.refreshStatisticsReport(
-                accessToken = accessToken,
-                accountName = accountName,
-                startDateEpochMillis = request.period.startDateEpochMillis,
-                endDateEpochMillis = request.period.endDateEpochMillis,
-            )
+            request.accountName.let { account ->
+                repository.snapshot.value.apps
+                    .filter { app ->
+                        val hasStoreId = app.appStoreId != null
+                        val isUrlNull = repository.snapshot.value.appIconUrls[app.appId] == null
+                        hasStoreId && isUrlNull
+                    }
+                    .forEach { app ->
+                        iconResolver.resolve(app.appStoreId!!)
+                            ?.let { url -> repository.saveAppIconUrl(app.appId, url) }
+                    }
+            }
+            withContext(Dispatchers.IO) {
+                repository.refreshStatisticsReport(
+                    accessToken = accessToken,
+                    accountName = accountName,
+                    startDateEpochMillis = request.period.startDateEpochMillis,
+                    endDateEpochMillis = request.period.endDateEpochMillis,
+                )
+            }
             operationState.update {
                 it.copy(
                     isLoading = false,
@@ -302,6 +351,7 @@ data class StatsUiState(
     val chartPeriod: StatisticsPeriod? = null,
     val chartCurrencyCode: String = "",
     val revenueTarget: CachedRevenueTarget? = null,
+    val appContributions: List<StatisticsAppContribution> = emptyList(),
     val isShowingPreviousChart: Boolean = false,
 ) {
     val canShowNextPeriod: Boolean
@@ -322,6 +372,13 @@ data class StatsUiState(
     val shouldShowCachedWarning: Boolean
         get() = !isOnline && hasCachedData
 }
+
+data class StatisticsAppContribution(
+    val appName: String,
+    val appStoreId: String? = null,
+    val iconUrl: String? = null,
+    val estimatedEarningsMicros: Long,
+)
 
 private data class StatisticsSelection(
     val timeRange: StatisticsTimeRange = StatisticsTimeRange.Week,

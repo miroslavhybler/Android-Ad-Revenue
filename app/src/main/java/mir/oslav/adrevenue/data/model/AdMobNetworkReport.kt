@@ -23,6 +23,8 @@ data class AdMobNetworkReport(
 @Serializable
 data class AdMobReportRow(
     val dateLabel: String,
+    val appName: String? = null,
+    val appId: String? = null,
     val estimatedEarningsMicros: Long?,
     val impressions: Long?,
     val clicks: Long?,

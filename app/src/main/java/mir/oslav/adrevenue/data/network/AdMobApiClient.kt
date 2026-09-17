@@ -31,6 +31,7 @@ import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.contentOrNull
 import mir.oslav.adrevenue.core.AdMobApiConstants
 import mir.oslav.adrevenue.data.model.AdMobAccount
+import mir.oslav.adrevenue.data.model.AdMobApp
 import mir.oslav.adrevenue.data.model.AdMobNetworkReport
 import mir.oslav.adrevenue.data.model.AdMobReportRow
 
@@ -57,6 +58,26 @@ class AdMobApiClient @Inject constructor(
             }
     }
 
+    suspend fun listApps(accessToken: String, accountName: String): List<AdMobApp> {
+        val url = "${AdMobApiConstants.ApiBaseUrl}/$accountName/apps"
+        val response = httpClient.get(urlString = url) { bearerAuth(token = accessToken) }
+            .readOrThrow<ListAppsResponse>(url)
+
+        val outputList = response.apps.orEmpty().mapNotNull { app ->
+            val appId = app.appId.takeIf { it.isNotBlank() } ?: return@mapNotNull null
+            val appStoreId = app.linkedAppInfo?.appStoreId ?: return@mapNotNull null
+
+            AdMobApp(
+                appId = appId,
+                appStoreId = appStoreId,
+                displayName = app.linkedAppInfo.displayName
+                    ?: app.manualAppInfo?.displayName ?: appId
+            )
+        }
+
+        return outputList
+    }
+
     suspend fun generateNetworkReport(
         accessToken: String,
         accountName: String,
@@ -71,6 +92,7 @@ class AdMobApiClient @Inject constructor(
         accountName: String,
         startDateEpochMillis: Long,
         endDateEpochMillis: Long,
+        includeAppDimension: Boolean = false,
     ): AdMobNetworkReport {
         require(startDateEpochMillis <= endDateEpochMillis) {
             "The report start date must not be after its end date."
@@ -81,6 +103,7 @@ class AdMobApiClient @Inject constructor(
             request = NetworkReportRequest.forDateRange(
                 startDateEpochMillis = startDateEpochMillis,
                 endDateEpochMillis = endDateEpochMillis,
+                includeAppDimension = includeAppDimension,
             ),
         )
     }
@@ -143,8 +166,17 @@ class AdMobApiClient @Inject constructor(
                     ?.stringValue("value")
                     .orEmpty()
                     .toReportDate()
+                val appDimension = dimensionValues["APP"].asObjectOrNull()
+                val appId = appDimension?.stringValue("value")?.takeIf { it.isNotBlank() }
+                val appName = appDimension
+                    ?.stringValue("displayLabel")
+                    ?.takeIf { it.isNotBlank() }
+                    ?: appId
+                        ?.takeIf { it.isNotBlank() }
                 rows += AdMobReportRow(
                     dateLabel = reportDate.label,
+                    appName = appName,
+                    appId = appId,
                     estimatedEarningsMicros = metricValues["ESTIMATED_EARNINGS"].asObjectOrNull()
                         ?.asLongValue(),
                     impressions = metricValues["IMPRESSIONS"].asObjectOrNull()?.asLongValue(),
@@ -264,6 +296,26 @@ private data class ListAccountsResponse(
 
 @Keep
 @Serializable
+private data class ListAppsResponse(val apps: List<AdMobAppDto>? = null)
+
+@Keep
+@Serializable
+private data class AdMobAppDto(
+    val appId: String,
+    val linkedAppInfo: LinkedAppInfoDto? = null,
+    val manualAppInfo: ManualAppInfoDto? = null,
+)
+
+@Keep
+@Serializable
+private data class LinkedAppInfoDto(val appStoreId: String? = null, val displayName: String? = null)
+
+@Keep
+@Serializable
+private data class ManualAppInfoDto(val displayName: String? = null)
+
+@Keep
+@Serializable
 private data class AdMobAccountDto(
     val name: String,
     val publisherId: String = "",
@@ -289,6 +341,7 @@ private data class NetworkReportRequest(
         fun forDateRange(
             startDateEpochMillis: Long,
             endDateEpochMillis: Long,
+            includeAppDimension: Boolean = false,
         ): NetworkReportRequest {
             val timeZone = TimeZone.getTimeZone(AdMobApiConstants.ReportTimeZone)
             val start = Calendar.getInstance(timeZone).apply {
@@ -297,10 +350,10 @@ private data class NetworkReportRequest(
             val end = Calendar.getInstance(timeZone).apply {
                 timeInMillis = endDateEpochMillis
             }
-            return forCalendars(start = start, end = end)
+            return forCalendars(start = start, end = end, includeAppDimension = includeAppDimension)
         }
 
-        private fun forCalendars(start: Calendar, end: Calendar): NetworkReportRequest {
+        private fun forCalendars(start: Calendar, end: Calendar, includeAppDimension: Boolean = false): NetworkReportRequest {
             return NetworkReportRequest(
                 reportSpec = NetworkReportSpec(
                     dateRange = NetworkReportDateRange(
@@ -308,7 +361,11 @@ private data class NetworkReportRequest(
                         endDate = end.toAdMobDate(),
                     ),
                     timeZone = AdMobApiConstants.ReportTimeZone,
-                    dimensions = AdMobApiConstants.NetworkReportDimensions,
+                    dimensions = if (includeAppDimension) {
+                        AdMobApiConstants.StatisticsReportDimensions
+                    } else {
+                        AdMobApiConstants.NetworkReportDimensions
+                    },
                     metrics = AdMobApiConstants.NetworkReportMetrics,
                 ),
             )

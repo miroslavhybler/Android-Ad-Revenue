@@ -307,6 +307,15 @@ private fun StatsPaneImpl(
                         modifier = Modifier.fillMaxWidth(),
                     )
                 }
+                if (state.appContributions.isNotEmpty()) {
+                    item {
+                        StatisticsAppContributionCard(
+                            contributions = state.appContributions,
+                            currencyCode = state.chartCurrencyCode,
+                            modifier = Modifier.fillMaxWidth(),
+                        )
+                    }
+                }
             } else if (!state.shouldShowOfflineEmpty && state.accountName != null) {
                 item {
                     Card(modifier = Modifier.fillMaxWidth()) {

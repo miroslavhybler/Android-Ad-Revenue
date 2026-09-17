@@ -35,6 +35,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -115,9 +116,10 @@ private fun HomePaneImpl(
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
                         Image(
-                            painter = painterResource(id = R.drawable.ic_logo_admob),
-                            contentDescription = stringResource(id = R.string.home_logo_content_description),
-                            modifier = Modifier.size(size = 32.dp),
+                            painter = painterResource(id = R.drawable.ic_launcher_foreground),
+                            contentDescription = null,
+                            modifier = Modifier.size(size = 32.dp)
+                            ,
                         )
                         Column(verticalArrangement = Arrangement.spacedBy(space = 4.dp)) {
                             Text(

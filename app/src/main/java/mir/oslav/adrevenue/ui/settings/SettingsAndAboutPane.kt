@@ -82,7 +82,7 @@ private fun SettingsAndAboutPaneImpl(
                     onClick = { uriHandler.openUri(adMobConsoleUrl) },
                 ) {
                     Icon(
-                        painter = painterResource(R.drawable.ic_logo_admob),
+                        painter = painterResource(id=R.drawable.ic_launcher_foreground),
                         contentDescription = null,
                         modifier = Modifier.size(20.dp),
                     )

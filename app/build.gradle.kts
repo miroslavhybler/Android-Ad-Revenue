@@ -67,6 +67,8 @@ android {
 }
 
 dependencies {
+    implementation(files("libs/jet-article-core-debug.aar"))
+    implementation(files("libs/jet-article-ui-debug.aar"))
     implementation ("io.github.ehsannarmani:compose-charts:1.0.0")
     implementation(platform(libs.androidx.compose.bom))
     implementation(libs.jet.utils)
@@ -93,6 +95,8 @@ dependencies {
     implementation(libs.androidx.navigation3.ui)
     implementation(libs.google.identity.googleid)
     implementation(libs.google.play.services.auth)
+    implementation(libs.coil.compose)
+    implementation(libs.coil.network.ktor3)
     implementation(libs.hilt.android)
     implementation(libs.ktor.client.android)
     implementation(libs.ktor.client.content.negotiation)

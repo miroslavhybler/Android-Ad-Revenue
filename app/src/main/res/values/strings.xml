@@ -24,7 +24,6 @@
     <string name="auth_account_accessibility">%1$s, currency %2$s, reporting time zone %3$s</string>
     <string name="auth_account_selected">Selected</string>
     <string name="auth_account_not_selected">Not selected</string>
-    <string name="home_logo_content_description">AdMob logo</string>
     <string name="home_about">About</string>
     <string name="home_sign_out">Sign out</string>
     <string name="home_connected_as">Connected as %1$s</string>
@@ -76,6 +75,8 @@
     <string name="statistics_target_period_summary">%1$s target: %2$s · Chart line: %3$s per bar</string>
     <string name="statistics_chart_target_content_description">Target line at %1$s per bar.</string>
     <string name="statistics_no_data">No revenue data for this period.</string>
+    <string name="statistics_app_contribution_title">Earnings by app</string>
+    <string name="statistics_app_contribution_content_description">App earnings contribution: %1$s</string>
     <string name="statistics_offline_empty_body">There is no cached statistics data for this period. Connect to the internet to load it.</string>
     <string name="account_title">Account</string>
     <string name="account_google_account">Google account</string>
