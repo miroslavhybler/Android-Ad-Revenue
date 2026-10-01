@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.rememberScrollState
@@ -26,6 +27,9 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -117,27 +121,43 @@ private fun StatsPaneImpl(
     Scaffold(
         modifier = modifier.fillMaxSize(),
         topBar = {
-            TopAppBar(
-                title = {
-                    Text(
-                        text = stringResource(id = R.string.statistics_title),
-                        fontWeight = FontWeight.SemiBold,
-                    )
-                },
-                actions = {
-                    IconButton(
-                        onClick = onOpenTargetSettings,
-                        enabled = state.accountName != null,
-                    ) {
-                        Icon(
-                            imageVector = Icons.Outlined.Settings,
-                            contentDescription = stringResource(
-                                id = R.string.statistics_target_settings,
-                            ),
+            Column(modifier = Modifier.fillMaxWidth()) {
+                TopAppBar(
+                    title = {
+                        Text(
+                            text = stringResource(id = R.string.statistics_title),
+                            fontWeight = FontWeight.SemiBold,
                         )
+                    },
+                    actions = {
+                        IconButton(
+                            onClick = onOpenTargetSettings,
+                            enabled = state.accountName != null,
+                        ) {
+                            Icon(
+                                imageVector = Icons.Outlined.Settings,
+                                contentDescription = stringResource(
+                                    id = R.string.statistics_target_settings,
+                                ),
+                            )
+                        }
+                    },
+                )
+
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(height = 4.dp),
+                ) {
+                    androidx.compose.animation.AnimatedVisibility(
+                        visible = state.isLoading,
+                        enter = fadeIn(),
+                        exit = fadeOut(),
+                    ) {
+                        LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
                     }
-                },
-            )
+                }
+            }
         },
     ) { paddingValues ->
         LazyColumn(
@@ -234,12 +254,6 @@ private fun StatsPaneImpl(
                             ),
                         )
                     }
-                }
-            }
-
-            if (state.isLoading && (state.hasCachedData || state.hasVisibleChart)) {
-                item {
-                    LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
                 }
             }
 

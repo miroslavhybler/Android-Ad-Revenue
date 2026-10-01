@@ -64,7 +64,6 @@ import mir.oslav.adrevenue.ui.PreviewContainer
 fun HomePane(
     onNavigate: (Destination) -> Unit,
     onRefreshClick: () -> Unit,
-    onSignOutClick: () -> Unit,
     modifier: Modifier = Modifier,
     viewModel: HomeViewModel = hiltViewModel(),
 ) {
@@ -74,8 +73,6 @@ fun HomePane(
         state = state.value,
         onNavigate = onNavigate,
         onRefreshRequested = onRefreshClick,
-        onAccountSelected = viewModel::selectAccount,
-        onSignOutClick = onSignOutClick,
         modifier = modifier,
     )
 }
@@ -85,8 +82,6 @@ private fun HomePaneImpl(
     state: HomeUiState,
     onNavigate: (Destination) -> Unit,
     onRefreshRequested: () -> Unit,
-    onAccountSelected: (String) -> Unit,
-    onSignOutClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     LaunchedEffect(key1 = state.signedInUser?.id, key2 = state.isOnline) {
@@ -118,8 +113,7 @@ private fun HomePaneImpl(
                         Image(
                             painter = painterResource(id = R.drawable.ic_launcher_foreground),
                             contentDescription = null,
-                            modifier = Modifier.size(size = 32.dp)
-                            ,
+                            modifier = Modifier.size(size = 32.dp),
                         )
                         Column(verticalArrangement = Arrangement.spacedBy(space = 4.dp)) {
                             Text(
@@ -368,8 +362,8 @@ private fun HomePaneImpl(
                     items(orderedRows) { row ->
                         Card(modifier = Modifier.fillMaxWidth()) {
                             Column(
-                                modifier = Modifier.padding(16.dp),
-                                verticalArrangement = Arrangement.spacedBy(12.dp),
+                                modifier = Modifier.padding(all = 16.dp),
+                                verticalArrangement = Arrangement.spacedBy(space = 12.dp),
                             ) {
                                 Row(
                                     modifier = Modifier.fillMaxWidth(),
@@ -392,40 +386,40 @@ private fun HomePaneImpl(
 
                                 Row(
                                     modifier = Modifier.fillMaxWidth(),
-                                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                                    horizontalArrangement = Arrangement.spacedBy(space = 12.dp),
                                 ) {
                                     Column(
-                                        modifier = Modifier.weight(1f),
-                                        verticalArrangement = Arrangement.spacedBy(2.dp),
+                                        modifier = Modifier.weight(weight = 1f),
+                                        verticalArrangement = Arrangement.spacedBy(space = 2.dp),
                                     ) {
                                         Text(
-                                            text = stringResource(R.string.home_metric_impressions),
+                                            text = stringResource(id = R.string.home_metric_impressions),
                                             style = MaterialTheme.typography.labelSmall,
                                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                                         )
-                                        Text(text = formatWholeNumber(row.impressions))
+                                        Text(text = formatWholeNumber(value = row.impressions))
                                     }
                                     Column(
-                                        modifier = Modifier.weight(1f),
-                                        verticalArrangement = Arrangement.spacedBy(2.dp),
+                                        modifier = Modifier.weight(weight = 1f),
+                                        verticalArrangement = Arrangement.spacedBy(space = 2.dp),
                                     ) {
                                         Text(
-                                            text = stringResource(R.string.home_metric_clicks),
+                                            text = stringResource(id = R.string.home_metric_clicks),
                                             style = MaterialTheme.typography.labelSmall,
                                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                                         )
-                                        Text(text = formatWholeNumber(row.clicks))
+                                        Text(text = formatWholeNumber(value = row.clicks))
                                     }
                                     Column(
-                                        modifier = Modifier.weight(1f),
-                                        verticalArrangement = Arrangement.spacedBy(2.dp),
+                                        modifier = Modifier.weight(weight = 1f),
+                                        verticalArrangement = Arrangement.spacedBy(space = 2.dp),
                                     ) {
                                         Text(
-                                            text = stringResource(R.string.home_stat_match),
+                                            text = stringResource(id = R.string.home_stat_match),
                                             style = MaterialTheme.typography.labelSmall,
                                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                                         )
-                                        Text(text = formatPercent(row.matchRate))
+                                        Text(text = formatPercent(value = row.matchRate))
                                     }
                                 }
                             }
@@ -435,16 +429,16 @@ private fun HomePaneImpl(
                     if (!state.shouldShowNoConnectionEmpty) {
                         Card(modifier = Modifier.fillMaxWidth()) {
                             Column(
-                                modifier = Modifier.padding(18.dp),
+                                modifier = Modifier.padding(all = 18.dp),
                                 verticalArrangement = Arrangement.spacedBy(8.dp),
                             ) {
                                 Text(
-                                    text = stringResource(R.string.home_no_report_title),
+                                    text = stringResource(id = R.string.home_no_report_title),
                                     style = MaterialTheme.typography.titleLarge,
                                     fontWeight = FontWeight.SemiBold,
                                 )
                                 Text(
-                                    text = stringResource(R.string.home_no_report_body),
+                                    text = stringResource(id = R.string.home_no_report_body),
                                     style = MaterialTheme.typography.bodyMedium,
                                 )
                             }
@@ -548,8 +542,6 @@ private fun HomePanePreview() {
             ),
             onNavigate = {},
             onRefreshRequested = {},
-            onAccountSelected = {},
-            onSignOutClick = {},
         )
     }
 }

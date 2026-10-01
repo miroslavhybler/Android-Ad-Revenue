@@ -16,7 +16,7 @@ import mir.oslav.adrevenue.data.network.AdMobApiClient
 
 @Singleton
 class AdMobRepository @Inject constructor(
-    private val apiClient: AdMobApiClient,
+    private val backend: AdMobBackend,
     private val cache: PersistentAdMobCache,
 ) {
     private val _snapshot = MutableStateFlow(CachedAdMobSnapshot())
@@ -30,9 +30,9 @@ class AdMobRepository @Inject constructor(
         signedInUser: SignedInUser,
         accessToken: String,
     ) {
-        val accounts = apiClient.listAccounts(accessToken)
+        val accounts = backend.listAccounts(accessToken)
         val apps = accounts.flatMap { account ->
-            apiClient.listApps(
+            backend.listApps(
                 accessToken = accessToken,
                 accountName = account.name,
             )
@@ -54,19 +54,19 @@ class AdMobRepository @Inject constructor(
         val current = _snapshot.value
         val signedInUser =
             current.signedInUser ?: throw IllegalStateException("The user is not signed in.")
-        val accounts = apiClient.listAccounts(accessToken)
+        val accounts = backend.listAccounts(accessToken)
         val selectedAccount = chooseSelectedAccount(
             accounts = accounts,
             preferredAccountName = current.selectedAccountName,
         )
         val apps = selectedAccount?.let {
-            apiClient.listApps(
+            backend.listApps(
                 accessToken = accessToken,
                 accountName = it.name
             )
         }.orEmpty()
         val report = selectedAccount?.let { account ->
-            apiClient.generateNetworkReport(
+            backend.generateNetworkReport(
                 accessToken = accessToken,
                 accountName = account.name,
             )
@@ -91,11 +91,11 @@ class AdMobRepository @Inject constructor(
         val current = _snapshot.value
         val account = current.accounts.firstOrNull { it.name == accountName }
             ?: throw IllegalArgumentException("Unknown AdMob account.")
-        val report = apiClient.generateNetworkReport(
+        val report = backend.generateNetworkReport(
             accessToken = accessToken,
             accountName = account.name,
         )
-        val apps = apiClient.listApps(accessToken = accessToken, accountName = account.name)
+        val apps = backend.listApps(accessToken = accessToken, accountName = account.name)
 
         savePersistent(
             snapshot = current.copy(
@@ -116,7 +116,7 @@ class AdMobRepository @Inject constructor(
         val accountExists = _snapshot.value.accounts.any { account -> account.name == accountName }
         require(value = accountExists) { "Unknown AdMob account." }
 
-        val report = apiClient.generateNetworkReport(
+        val report = backend.generateNetworkReport(
             accessToken = accessToken,
             accountName = accountName,
             startDateEpochMillis = startDateEpochMillis,

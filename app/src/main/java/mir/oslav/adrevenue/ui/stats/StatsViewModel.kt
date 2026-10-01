@@ -440,6 +440,7 @@ internal fun StatsUiState.retainChartWhileLoading(previous: StatsUiState): Stats
         chartTimeRange = previous.chartTimeRange,
         chartPeriod = previous.chartPeriod,
         chartCurrencyCode = previous.chartCurrencyCode,
+        appContributions = previous.appContributions,
         isShowingPreviousChart = true,
     )
 }

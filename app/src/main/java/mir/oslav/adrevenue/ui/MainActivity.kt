@@ -30,7 +30,7 @@ class MainActivity : ComponentActivity() {
     private val statsViewModel: StatsViewModel by viewModels()
 
     private val signInAuthorizationLauncher = registerForActivityResult(
-        ActivityResultContracts.StartIntentSenderForResult(),
+        contract = ActivityResultContracts.StartIntentSenderForResult(),
     ) { result ->
         handleAuthorizationActivityResult(
             resultCode = result.resultCode,
@@ -40,7 +40,7 @@ class MainActivity : ComponentActivity() {
     }
 
     private val refreshAuthorizationLauncher = registerForActivityResult(
-        ActivityResultContracts.StartIntentSenderForResult(),
+        contract = ActivityResultContracts.StartIntentSenderForResult(),
     ) { result ->
         handleAuthorizationActivityResult(
             resultCode = result.resultCode,
@@ -50,7 +50,7 @@ class MainActivity : ComponentActivity() {
     }
 
     private val statisticsAuthorizationLauncher = registerForActivityResult(
-        ActivityResultContracts.StartIntentSenderForResult(),
+        contract = ActivityResultContracts.StartIntentSenderForResult(),
     ) { result ->
         handleAuthorizationActivityResult(
             resultCode = result.resultCode,
@@ -72,7 +72,6 @@ class MainActivity : ComponentActivity() {
                     onUseAnotherGoogleAccountClick = ::useAnotherGoogleAccount,
                     onRefreshClick = ::requestRefreshAuthorization,
                     onStatisticsAuthorizationRequested = ::requestStatisticsAuthorization,
-                    onSignOutClick = ::signOut,
                 )
             }
         }
@@ -87,13 +86,13 @@ class MainActivity : ComponentActivity() {
                     preferAuthorizedAccounts = false,
                 )
             }.onSuccess { signedInUser ->
-                authViewModel.googleAccountSelected(signedInUser)
+                authViewModel.googleAccountSelected(signedInUser = signedInUser)
                 requestAdMobAuthorization(target = AuthorizationTarget.SignIn)
             }.onFailure { throwable ->
                 if (throwable.isUserCancellation()) {
                     authViewModel.signInCanceled()
                 } else {
-                    authViewModel.signInFailed(throwable)
+                    authViewModel.signInFailed(throwable = throwable)
                 }
             }
         }
@@ -130,9 +129,11 @@ class MainActivity : ComponentActivity() {
                         authorizationResult.pendingIntent.intentSender,
                     ).build()
                     when (target) {
-                        AuthorizationTarget.SignIn -> signInAuthorizationLauncher.launch(request)
-                        AuthorizationTarget.Refresh -> refreshAuthorizationLauncher.launch(request)
-                        AuthorizationTarget.Statistics -> statisticsAuthorizationLauncher.launch(request)
+                        AuthorizationTarget.SignIn -> signInAuthorizationLauncher.launch( input=request)
+                        AuthorizationTarget.Refresh -> refreshAuthorizationLauncher.launch( input=request)
+                        AuthorizationTarget.Statistics -> statisticsAuthorizationLauncher.launch(
+                         input=    request
+                        )
                     }
                 }
             }
@@ -202,6 +203,7 @@ class MainActivity : ComponentActivity() {
             AuthorizationTarget.Refresh -> homeViewModel.authorizationFailed(
                 IllegalStateException("AdMob authorization was canceled."),
             )
+
             AuthorizationTarget.Statistics -> statsViewModel.authorizationFailed(
                 IllegalStateException("AdMob authorization was canceled."),
             )
@@ -234,4 +236,4 @@ private enum class AuthorizationTarget {
 
 private fun Throwable.isUserCancellation(): Boolean =
     this is CancellationException ||
-        this is GetCredentialCancellationException
+            this is GetCredentialCancellationException

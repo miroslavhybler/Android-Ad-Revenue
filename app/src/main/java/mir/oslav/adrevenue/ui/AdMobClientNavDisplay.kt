@@ -37,14 +37,12 @@ fun AdMobClientNavDisplay(
     onUseAnotherGoogleAccountClick: () -> Unit,
     onRefreshClick: () -> Unit,
     onStatisticsAuthorizationRequested: () -> Unit,
-    onSignOutClick: () -> Unit,
-    modifier: Modifier = Modifier,
 ) {
     val listDetailStrategy = rememberListDetailSceneStrategy<NavKey>()
 
     NavDisplay(
+        modifier = Modifier.fillMaxSize(),
         backStack = backStack,
-        modifier = modifier.fillMaxSize(),
         onBack = onBack,
         sceneStrategies = listOf(listDetailStrategy),
         predictivePopTransitionSpec = {
@@ -68,7 +66,6 @@ fun AdMobClientNavDisplay(
                 HomePane(
                     onNavigate = onNavigate,
                     onRefreshClick = onRefreshClick,
-                    onSignOutClick = onSignOutClick,
                     viewModel = homeViewModel,
                 )
             }

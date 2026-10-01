@@ -19,6 +19,8 @@ import androidx.compose.material.icons.outlined.Apps
 import androidx.compose.ui.layout.ContentScale
 import coil3.compose.AsyncImage
 import androidx.compose.runtime.Composable
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -46,14 +48,14 @@ internal fun StatisticsAppContributionCard(
     val colors = remember(contributions.size) {
         contributions.indices.map { index -> contributionColors[index % contributionColors.size] }
     }
-    val description = contributions.joinToString(", ") { contribution ->
-        "${contribution.appName}: ${
-            formatStatisticsMoney(
-                contribution.estimatedEarningsMicros,
-                currencyCode
-            )
-        }"
+    val animatedEarnings = contributions.map { contribution ->
+        animateFloatAsState(
+            targetValue = contribution.estimatedEarningsMicros.toFloat(),
+            animationSpec = tween(durationMillis = 450),
+            label = "${contribution.appName} earnings",
+        ).value
     }
+    val animatedTotal = animatedEarnings.sum().coerceAtLeast(1f)
 
     Card(modifier = modifier) {
         Column(
@@ -76,8 +78,8 @@ internal fun StatisticsAppContributionCard(
                     y = (size.height - diameter) / 2f,
                 )
                 var startAngle = -90f
-                contributions.forEachIndexed { index, contribution ->
-                    val sweep = contribution.estimatedEarningsMicros.toFloat() / totalMicros * 360f
+                contributions.forEachIndexed { index, _ ->
+                    val sweep = animatedEarnings[index] / animatedTotal * 360f
                     drawArc(
                         color = colors[index],
                         startAngle = startAngle,

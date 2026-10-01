@@ -25,6 +25,14 @@ fun String.escapedBuildConfigString(): String {
 }
 
 android {
+    flavorDimensions += "dataSource"
+    productFlavors {
+        create("real") { dimension = "dataSource" }
+        create("mock") {
+            dimension = "dataSource"
+            applicationIdSuffix = ".mock"
+        }
+    }
     namespace = "mir.oslav.adrevenue"
     compileSdk {
         version = release(37)
@@ -69,7 +77,7 @@ android {
 dependencies {
     implementation(files("libs/jet-article-core-debug.aar"))
     implementation(files("libs/jet-article-ui-debug.aar"))
-    implementation ("io.github.ehsannarmani:compose-charts:1.0.0")
+    implementation (libs.compose.charts)
     implementation(platform(libs.androidx.compose.bom))
     implementation(libs.jet.utils)
     implementation(libs.androidx.annotation)

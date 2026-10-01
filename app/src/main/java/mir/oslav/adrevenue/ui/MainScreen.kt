@@ -8,6 +8,9 @@ import androidx.compose.material.icons.outlined.Home
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.material3.adaptive.navigationsuite.NavigationSuiteScaffold
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.ui.Modifier
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -30,7 +33,6 @@ fun MainScreen(
     onUseAnotherGoogleAccountClick: () -> Unit,
     onRefreshClick: () -> Unit,
     onStatisticsAuthorizationRequested: () -> Unit,
-    onSignOutClick: () -> Unit,
 ) {
     val authState = authViewModel.uiState.collectAsStateWithLifecycle()
     val homeState = homeViewModel.uiState.collectAsStateWithLifecycle()
@@ -59,11 +61,14 @@ fun MainScreen(
             onUseAnotherGoogleAccountClick = onUseAnotherGoogleAccountClick,
             onRefreshClick = onRefreshClick,
             onStatisticsAuthorizationRequested = onStatisticsAuthorizationRequested,
-            onSignOutClick = onSignOutClick,
         )
     }
 
-    if (showPrimaryNavigation) {
+    if (authState.value.isRestoring) {
+        // Do not compose AuthPane while the persisted session is being restored.
+        // This prevents a signed-in user from seeing a one-frame auth screen.
+        Box(modifier = Modifier.fillMaxSize())
+    } else if (showPrimaryNavigation) {
         NavigationSuiteScaffold(
             navigationSuiteItems = {
                 mainNavigationItems.forEach { navigationItem ->
