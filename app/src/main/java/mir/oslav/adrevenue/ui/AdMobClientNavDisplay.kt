@@ -23,6 +23,8 @@ import mir.oslav.adrevenue.ui.home.HomeViewModel
 import mir.oslav.adrevenue.ui.settings.SettingsAndAboutPane
 import mir.oslav.adrevenue.ui.stats.StatsPane
 import mir.oslav.adrevenue.ui.stats.StatsViewModel
+import mir.oslav.adrevenue.ui.search.SearchPane
+import mir.oslav.adrevenue.ui.search.SearchDocumentDetailPane
 
 @OptIn(ExperimentalMaterial3AdaptiveApi::class)
 @Composable
@@ -79,6 +81,19 @@ fun AdMobClientNavDisplay(
                 )
             }
 
+            entry<Destination.Search>(metadata = ListDetailSceneStrategy.listPane()) {
+                SearchPane(onNavigate = onNavigate)
+            }
+
+            entry<Destination.SearchDocumentDetail>(
+                metadata = ListDetailSceneStrategy.detailPane(),
+            ) { destination ->
+                SearchDocumentDetailPane(
+                    result = destination.result,
+                    onNavigate = onNavigate,
+                )
+            }
+
             entry<Destination.Account>(
                 metadata = ListDetailSceneStrategy.listPane(),
             ) {
@@ -110,6 +125,16 @@ sealed interface Destination : NavKey {
     @Keep
     @Serializable
     data object Statistics : Destination
+
+    @Keep
+    @Serializable
+    data object Search : Destination
+
+    @Keep
+    @Serializable
+    data class SearchDocumentDetail(
+        val result: mir.oslav.adrevenue.data.search.DocumentationSearchResult,
+    ) : Destination
 
     @Keep
     @Serializable

@@ -1,20 +1,10 @@
 package mir.oslav.adrevenue.ui
 
-import androidx.annotation.StringRes
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.outlined.AccountCircle
-import androidx.compose.material.icons.outlined.BarChart
-import androidx.compose.material.icons.outlined.Home
-import androidx.compose.material3.Icon
-import androidx.compose.material3.Text
-import androidx.compose.material3.adaptive.navigationsuite.NavigationSuiteScaffold
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.ui.Modifier
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.res.stringResource
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation3.runtime.NavBackStack
 import androidx.navigation3.runtime.NavKey
@@ -69,24 +59,9 @@ fun MainScreen(
         // This prevents a signed-in user from seeing a one-frame auth screen.
         Box(modifier = Modifier.fillMaxSize())
     } else if (showPrimaryNavigation) {
-        NavigationSuiteScaffold(
-            navigationSuiteItems = {
-                mainNavigationItems.forEach { navigationItem ->
-                    item(
-                        selected = currentDestination == navigationItem.destination,
-                        onClick = { backStack.navigate(destination = navigationItem.destination) },
-                        icon = {
-                            Icon(
-                                imageVector = navigationItem.icon,
-                                contentDescription = null,
-                            )
-                        },
-                        label = {
-                            Text(text = stringResource(id = navigationItem.labelResource))
-                        },
-                    )
-                }
-            },
+        MainNavigationBar(
+            currentDestination = currentDestination,
+            onNavigate = backStack::navigate,
             content = content,
         )
     } else {
@@ -105,9 +80,10 @@ private fun NavBackStack<NavKey>.navigate(destination: Destination) {
         Destination.Auth,
         Destination.Home,
         Destination.Statistics,
-        Destination.Account -> replaceWith(destination = destination)
+        Destination.Account, Destination.Search -> replaceWith(destination = destination)
 
-        Destination.SettingsAndAbout -> {
+        Destination.SettingsAndAbout,
+        is Destination.SearchDocumentDetail -> {
             removeAll(predicate = { it == destination })
             add(element = destination)
         }
@@ -120,28 +96,5 @@ private fun NavBackStack<NavKey>.navigateBack() {
     }
 }
 
-private data class MainNavigationItem(
-    val destination: Destination,
-    @param:StringRes val labelResource: Int,
-    val icon: ImageVector,
-)
-
-private val mainNavigationItems = listOf(
-    MainNavigationItem(
-        destination = Destination.Home,
-        labelResource = R.string.navigation_home,
-        icon = Icons.Outlined.Home,
-    ),
-    MainNavigationItem(
-        destination = Destination.Statistics,
-        labelResource = R.string.navigation_statistics,
-        icon = Icons.Outlined.BarChart,
-    ),
-    MainNavigationItem(
-        destination = Destination.Account,
-        labelResource = R.string.navigation_account,
-        icon = Icons.Outlined.AccountCircle,
-    ),
-)
-
-private val mainNavigationDestinations = mainNavigationItems.map { item -> item.destination }
+private val mainNavigationDestinations: List<Destination> =
+    mainNavigationItems.map(transform = { item -> item.destination })

@@ -9,6 +9,8 @@ plugins {
 }
 
 val admobWebClientId = readLocalProperty(name = "ADMOB_WEB_CLIENT_ID").escapedBuildConfigString()
+val developerKnowledgeApiKey = readLocalProperty(name = "DEVELOPER_KNOWLEDGE_API_KEY").escapedBuildConfigString()
+val developerKnowledgeAndroidCert = readLocalProperty(name = "DEVELOPER_KNOWLEDGE_ANDROID_CERT").escapedBuildConfigString()
 
 fun readLocalProperty(name: String): String {
     val localPropertiesFile = rootProject.file("local.properties")
@@ -51,6 +53,8 @@ android {
             "ADMOB_WEB_CLIENT_ID",
             "\"$admobWebClientId\"",
         )
+        buildConfigField("String", "DEVELOPER_KNOWLEDGE_API_KEY", "\"$developerKnowledgeApiKey\"")
+        buildConfigField("String", "DEVELOPER_KNOWLEDGE_ANDROID_CERT", "\"$developerKnowledgeAndroidCert\"")
     }
 
     buildTypes {
@@ -82,6 +86,7 @@ dependencies {
     implementation(libs.jet.utils)
     implementation(libs.androidx.annotation)
     implementation(libs.androidx.activity.compose)
+    implementation(libs.androidx.browser)
     implementation(libs.androidx.compose.material.icons.extended)
     implementation(libs.androidx.compose.material3)
     implementation(libs.androidx.compose.ui)

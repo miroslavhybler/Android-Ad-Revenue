@@ -29,6 +29,7 @@ import mir.oslav.adrevenue.data.model.AdMobNetworkReport
 import mir.oslav.adrevenue.data.network.PlayStoreIconResolver
 import mir.oslav.adrevenue.ui.UiMessage
 import mir.oslav.adrevenue.ui.UiMessageKind
+import mir.oslav.adrevenue.utils.updateCopy
 
 @HiltViewModel
 class StatsViewModel @Inject constructor(
@@ -191,9 +192,9 @@ class StatsViewModel @Inject constructor(
 
     fun selectTimeRange(timeRange: StatisticsTimeRange) {
         if (selection.value.timeRange == timeRange && selection.value.periodOffset == 0) return
-        operationState.update { it.copy(isLoading = isOnline.value, message = null) }
-        selection.update {
-            it.copy(
+        operationState.updateCopy { copy(isLoading = isOnline.value, message = null) }
+        selection.updateCopy {
+            copy(
                 timeRange = timeRange,
                 periodOffset = 0,
                 anchorEpochMillis = System.currentTimeMillis(),
@@ -202,18 +203,18 @@ class StatsViewModel @Inject constructor(
     }
 
     fun showPreviousPeriod() {
-        operationState.update { it.copy(isLoading = isOnline.value, message = null) }
-        selection.update { it.copy(periodOffset = it.periodOffset - 1) }
+        operationState.updateCopy { copy(isLoading = isOnline.value, message = null) }
+        selection.updateCopy { copy(periodOffset = periodOffset - 1) }
     }
 
     fun showNextPeriod() {
         if (selection.value.periodOffset >= 0) return
-        operationState.update { it.copy(isLoading = isOnline.value, message = null) }
-        selection.update { it.copy(periodOffset = it.periodOffset + 1) }
+        operationState.updateCopy { copy(isLoading = isOnline.value, message = null) }
+        selection.updateCopy { copy(periodOffset = periodOffset + 1) }
     }
 
     fun setShowTrend(showTrend: Boolean) {
-        selection.update { it.copy(showTrend = showTrend) }
+        selection.updateCopy { copy(showTrend = showTrend) }
     }
 
     fun setRevenueTarget(amountMicros: Long, rangeDays: Int) {

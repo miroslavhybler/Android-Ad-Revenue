@@ -45,6 +45,11 @@
     <string name="navigation_home">Home</string>
     <string name="navigation_statistics">Statistics</string>
     <string name="navigation_account">Account</string>
+    <string name="navigation_search">Search</string>
+    <string name="search_hint">Search AdMob documentation</string>
+    <string name="search_remove_history">Remove from search history</string>
+    <string name="search_detail_back">Back to search results</string>
+    <string name="search_detail_open_source">Open source documentation</string>
     <string name="statistics_title">Statistics</string>
     <string name="statistics_range_week">Week</string>
     <string name="statistics_range_month">Month</string>
