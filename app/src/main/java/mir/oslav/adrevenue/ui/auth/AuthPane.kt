@@ -17,11 +17,16 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.PreviewParameter
+import androidx.compose.ui.res.stringResource
+import mir.oslav.adrevenue.R
 import androidx.compose.ui.tooling.preview.PreviewParameterProvider
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
@@ -60,6 +65,7 @@ fun AuthPane(
         onContinueClick = viewModel::continueToDashboard,
         onRetryClick = viewModel::retryAccountLoading,
         onUseAnotherGoogleAccountClick = onUseAnotherGoogleAccountClick,
+        onGalleryClick = { onNavigate(Destination.Gallery) },
         modifier = modifier,
     )
 }
@@ -72,6 +78,7 @@ private fun AuthPaneImpl(
     onContinueClick: () -> Unit,
     onRetryClick: () -> Unit,
     onUseAnotherGoogleAccountClick: () -> Unit,
+    onGalleryClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     Scaffold(
@@ -82,13 +89,18 @@ private fun AuthPaneImpl(
             AuthHeader(step = state.step)
         },
         bottomBar = {
-            AuthBottomAction(
-                state = state,
-                onSignInClick = onSignInClick,
-                onContinueClick = onContinueClick,
-                onRetryClick = onRetryClick,
-                onUseAnotherGoogleAccountClick = onUseAnotherGoogleAccountClick,
-            )
+            Column {
+                TextButton(onClick = onGalleryClick, modifier = Modifier.fillMaxWidth()) {
+                    Text(stringResource(R.string.auth_open_gallery))
+                }
+                AuthBottomAction(
+                    state = state,
+                    onSignInClick = onSignInClick,
+                    onContinueClick = onContinueClick,
+                    onRetryClick = onRetryClick,
+                    onUseAnotherGoogleAccountClick = onUseAnotherGoogleAccountClick,
+                )
+            }
         },
     ) { innerPadding ->
         Box(
@@ -151,6 +163,7 @@ private fun AuthPanePreview(
             onContinueClick = {},
             onRetryClick = {},
             onUseAnotherGoogleAccountClick = {},
+            onGalleryClick = {},
         )
     }
 }

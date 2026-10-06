@@ -5,6 +5,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.AccountCircle
 import androidx.compose.material.icons.outlined.BarChart
 import androidx.compose.material.icons.outlined.Home
+import androidx.compose.material.icons.outlined.AutoAwesome
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.material3.adaptive.navigationsuite.NavigationSuiteScaffold
@@ -40,7 +41,9 @@ fun MainScreen(
 
     LaunchedEffect(key1 = authState.value.shouldShowAuth, key2 = homeState.value.shouldShowHome) {
         when {
-            authState.value.shouldShowAuth -> backStack.replaceWith(destination = Destination.Auth)
+            authState.value.shouldShowAuth && backStack.lastOrNull() != Destination.Gallery -> {
+                backStack.replaceWith(destination = Destination.Auth)
+            }
             homeState.value.shouldShowHome && backStack.lastOrNull() == Destination.Auth -> {
                 backStack.replaceWith(destination = Destination.Home)
             }
@@ -48,7 +51,8 @@ fun MainScreen(
     }
 
     val currentDestination = backStack.lastOrNull() as? Destination
-    val showPrimaryNavigation = currentDestination in mainNavigationDestinations
+    val showPrimaryNavigation = currentDestination in mainNavigationDestinations &&
+        !authState.value.shouldShowAuth
     val content = @Composable {
         AdMobClientNavDisplay(
             backStack = backStack,
@@ -107,6 +111,11 @@ private fun NavBackStack<NavKey>.navigate(destination: Destination) {
         Destination.Statistics,
         Destination.Account -> replaceWith(destination = destination)
 
+        Destination.Gallery -> {
+            if (lastOrNull() == Destination.Auth) add(element = destination)
+            else replaceWith(destination = destination)
+        }
+
         Destination.SettingsAndAbout -> {
             removeAll(predicate = { it == destination })
             add(element = destination)
@@ -136,6 +145,11 @@ private val mainNavigationItems = listOf(
         destination = Destination.Statistics,
         labelResource = R.string.navigation_statistics,
         icon = Icons.Outlined.BarChart,
+    ),
+    MainNavigationItem(
+        destination = Destination.Gallery,
+        labelResource = R.string.navigation_gallery,
+        icon = Icons.Outlined.AutoAwesome,
     ),
     MainNavigationItem(
         destination = Destination.Account,

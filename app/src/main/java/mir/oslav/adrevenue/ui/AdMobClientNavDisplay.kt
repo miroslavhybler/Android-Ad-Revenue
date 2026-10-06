@@ -20,6 +20,7 @@ import mir.oslav.adrevenue.ui.auth.AuthPane
 import mir.oslav.adrevenue.ui.auth.AuthViewModel
 import mir.oslav.adrevenue.ui.home.HomePane
 import mir.oslav.adrevenue.ui.home.HomeViewModel
+import mir.oslav.adrevenue.ui.gallery.GalleryPane
 import mir.oslav.adrevenue.ui.settings.SettingsAndAboutPane
 import mir.oslav.adrevenue.ui.stats.StatsPane
 import mir.oslav.adrevenue.ui.stats.StatsViewModel
@@ -85,6 +86,12 @@ fun AdMobClientNavDisplay(
                 AccountPane()
             }
 
+            entry<Destination.Gallery>(
+                metadata = ListDetailSceneStrategy.listPane(),
+            ) {
+                GalleryPane(onBackClick = onBack, showBackButton = backStack.size > 1)
+            }
+
             entry<Destination.SettingsAndAbout>(
                 metadata = ListDetailSceneStrategy.detailPane(),
             ) {
@@ -114,6 +121,10 @@ sealed interface Destination : NavKey {
     @Keep
     @Serializable
     data object Account : Destination
+
+    @Keep
+    @Serializable
+    data object Gallery : Destination
 
     @Keep
     @Serializable

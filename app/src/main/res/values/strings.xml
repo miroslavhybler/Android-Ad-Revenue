@@ -45,6 +45,8 @@
     <string name="navigation_home">Home</string>
     <string name="navigation_statistics">Statistics</string>
     <string name="navigation_account">Account</string>
+    <string name="navigation_gallery">Gallery</string>
+    <string name="auth_open_gallery">Explore Compose ad gallery without signing in</string>
     <string name="statistics_title">Statistics</string>
     <string name="statistics_range_week">Week</string>
     <string name="statistics_range_month">Month</string>

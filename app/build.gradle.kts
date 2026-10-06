@@ -25,17 +25,11 @@ fun String.escapedBuildConfigString(): String {
 }
 
 android {
-    flavorDimensions += "dataSource"
-    productFlavors {
-        create("real") { dimension = "dataSource" }
-        create("mock") {
-            dimension = "dataSource"
-            applicationIdSuffix = ".mock"
-        }
-    }
     namespace = "mir.oslav.adrevenue"
     compileSdk {
-        version = release(37)
+        version = release(37) {
+            minorApiLevel = 1
+        }
     }
 
     defaultConfig {
@@ -64,6 +58,16 @@ android {
             }
         }
     }
+
+    flavorDimensions += "dataSource"
+    productFlavors {
+        create("real") { dimension = "dataSource" }
+        create("mock") {
+            dimension = "dataSource"
+            applicationIdSuffix = ".mock"
+        }
+    }
+
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_11
         targetCompatibility = JavaVersion.VERSION_11
@@ -80,6 +84,7 @@ dependencies {
     implementation (libs.compose.charts)
     implementation(platform(libs.androidx.compose.bom))
     implementation(libs.jet.utils)
+    implementation(libs.jet.admob.ads)
     implementation(libs.androidx.annotation)
     implementation(libs.androidx.activity.compose)
     implementation(libs.androidx.compose.material.icons.extended)
@@ -105,6 +110,7 @@ dependencies {
     implementation(libs.google.play.services.auth)
     implementation(libs.coil.compose)
     implementation(libs.coil.network.ktor3)
+    implementation(libs.google.play.services.ads)
     implementation(libs.hilt.android)
     implementation(libs.ktor.client.android)
     implementation(libs.ktor.client.content.negotiation)

@@ -25,4 +25,3 @@ dependencyResolutionManagement {
 
 rootProject.name = "AdMob Client"
 include(":app")
- 
