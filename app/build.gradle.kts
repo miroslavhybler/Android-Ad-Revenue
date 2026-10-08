@@ -26,11 +26,7 @@ fun String.escapedBuildConfigString(): String {
 
 android {
     namespace = "mir.oslav.adrevenue"
-    compileSdk {
-        version = release(37) {
-            minorApiLevel = 1
-        }
-    }
+    compileSdk = 37
 
     defaultConfig {
         applicationId = "mir.oslav.adrevenue"
@@ -81,7 +77,7 @@ android {
 dependencies {
     implementation(files("libs/jet-article-core-debug.aar"))
     implementation(files("libs/jet-article-ui-debug.aar"))
-    implementation (libs.compose.charts)
+    implementation(libs.compose.charts)
     implementation(platform(libs.androidx.compose.bom))
     implementation(libs.jet.utils)
     implementation(libs.jet.admob.ads)
