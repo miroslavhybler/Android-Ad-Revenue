@@ -25,14 +25,6 @@ fun String.escapedBuildConfigString(): String {
 }
 
 android {
-    flavorDimensions += "dataSource"
-    productFlavors {
-        create("real") { dimension = "dataSource" }
-        create("mock") {
-            dimension = "dataSource"
-            applicationIdSuffix = ".mock"
-        }
-    }
     namespace = "mir.oslav.adrevenue"
     compileSdk {
         version = release(37)
@@ -64,6 +56,18 @@ android {
             }
         }
     }
+
+    flavorDimensions += "dataSource"
+    productFlavors {
+        create("real") {
+            dimension = "dataSource"
+        }
+        create("mock") {
+            dimension = "dataSource"
+            applicationIdSuffix = ".mock"
+        }
+    }
+
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_11
         targetCompatibility = JavaVersion.VERSION_11
@@ -106,7 +110,7 @@ dependencies {
     implementation(libs.coil.compose)
     implementation(libs.coil.network.ktor3)
     implementation(libs.hilt.android)
-    implementation(libs.ktor.client.android)
+    implementation(libs.ktor.client.okhttp)
     implementation(libs.ktor.client.content.negotiation)
     implementation(libs.ktor.client.core)
     implementation(libs.ktor.serialization.kotlinx.json)

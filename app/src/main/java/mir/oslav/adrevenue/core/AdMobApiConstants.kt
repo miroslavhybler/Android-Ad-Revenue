@@ -8,7 +8,7 @@ object AdMobApiConstants {
     const val ReadTimeoutMillis = 30_000L
 
     val NetworkReportDimensions = listOf("DATE")
-    val StatisticsReportDimensions = listOf("DATE", "APP")
+    val StatisticsReportDimensions = listOf("DATE", "APP", "FORMAT")
     val NetworkReportMetrics = listOf(
         "ESTIMATED_EARNINGS",
         "IMPRESSIONS",

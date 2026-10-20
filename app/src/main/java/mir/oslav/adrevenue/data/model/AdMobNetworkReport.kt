@@ -31,4 +31,5 @@ data class AdMobReportRow(
     val matchRate: Double?,
     val impressionRpmMicros: Long?,
     val dateEpochMillis: Long? = null,
+    val adFormat: String? = null,
 )

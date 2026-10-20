@@ -2,7 +2,7 @@ package mir.oslav.adrevenue.data.network
 
 import com.jet.article.core.ArticleContentTransformer
 import io.ktor.client.HttpClient
-import io.ktor.client.engine.android.Android
+import io.ktor.client.engine.okhttp.OkHttp
 import io.ktor.client.request.get
 import io.ktor.client.statement.bodyAsText
 import java.util.concurrent.ConcurrentHashMap
@@ -12,7 +12,7 @@ import javax.inject.Singleton
 @Singleton
 class PlayStoreIconResolver @Inject constructor() {
     private val cache = ConcurrentHashMap<String, String>()
-    private val client = HttpClient(engineFactory = Android)
+    private val client = HttpClient(engineFactory = OkHttp)
 
     private val transformer = ArticleContentTransformer()
 

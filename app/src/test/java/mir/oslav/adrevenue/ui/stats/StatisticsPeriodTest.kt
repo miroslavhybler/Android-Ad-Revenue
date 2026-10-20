@@ -12,6 +12,15 @@ import org.junit.Test
 
 class StatisticsPeriodTest {
     @Test
+    fun reportDimensions_keepHomeTotalsSeparateFromStatisticsBreakdowns() {
+        assertEquals(listOf("DATE"), AdMobApiConstants.NetworkReportDimensions)
+        assertEquals(
+            listOf("DATE", "APP", "FORMAT"),
+            AdMobApiConstants.StatisticsReportDimensions,
+        )
+    }
+
+    @Test
     fun currentWeek_startsOnMondayAndEndsToday() {
         val period = calculateStatisticsPeriod(
             timeRange = StatisticsTimeRange.Week,
@@ -109,6 +118,75 @@ class StatisticsPeriodTest {
         assertEquals(5, bars.size)
         assertEquals(3_000_000L, bars[0].estimatedEarningsMicros)
         assertEquals(4_000_000L, bars[1].estimatedEarningsMicros)
+    }
+
+    @Test
+    fun appBreakdown_preservesBucketTotalsAndOrdersSeriesByRevenue() {
+        val period = StatisticsPeriod(
+            startDateEpochMillis = reportDate(2026, Calendar.AUGUST, 24),
+            endDateEpochMillis = reportDate(2026, Calendar.AUGUST, 25),
+        )
+        val rows = listOf(
+            reportRow(
+                day = 24,
+                revenueMicros = 1_000_000L,
+                appName = "First app",
+                appId = "app-1",
+            ),
+            reportRow(
+                day = 24,
+                revenueMicros = 2_000_000L,
+                appName = "Second app",
+                appId = "app-2",
+            ),
+            reportRow(
+                day = 25,
+                revenueMicros = 3_000_000L,
+                appName = "First app",
+                appId = "app-1",
+            ),
+        )
+
+        val breakdown = buildStatisticsChartBreakdown(
+            rows = rows,
+            timeRange = StatisticsTimeRange.Week,
+            period = period,
+            dimension = StatisticsBreakdownDimension.App,
+        )
+
+        assertEquals(listOf("First app", "Second app"), breakdown.series.map { it.label })
+        assertEquals(3_000_000L, breakdown.bars[0].earningsMicrosBySeries.values.sum())
+        assertEquals(3_000_000L, breakdown.bars[1].earningsMicrosBySeries.values.sum())
+    }
+
+    @Test
+    fun adFormatBreakdown_groupsApiValuesAndFormatsTheirLabels() {
+        val period = StatisticsPeriod(
+            startDateEpochMillis = reportDate(2026, Calendar.AUGUST, 24),
+            endDateEpochMillis = reportDate(2026, Calendar.AUGUST, 24),
+        )
+        val rows = listOf(
+            reportRow(
+                day = 24,
+                revenueMicros = 2_500_000L,
+                adFormat = "APP_OPEN",
+            ),
+            reportRow(
+                day = 24,
+                revenueMicros = 1_500_000L,
+                adFormat = "BANNER",
+            ),
+        )
+
+        val breakdown = buildStatisticsChartBreakdown(
+            rows = rows,
+            timeRange = StatisticsTimeRange.Week,
+            period = period,
+            dimension = StatisticsBreakdownDimension.AdFormat,
+        )
+
+        assertEquals(listOf("App open", "Banner"), breakdown.series.map { it.label })
+        assertEquals(4_000_000L, breakdown.bars.single().earningsMicrosBySeries.values.sum())
     }
 
     @Test
@@ -222,14 +300,23 @@ class StatisticsPeriodTest {
         assertFalse(retained.isShowingPreviousChart)
     }
 
-    private fun reportRow(day: Int, revenueMicros: Long): AdMobReportRow = AdMobReportRow(
+    private fun reportRow(
+        day: Int,
+        revenueMicros: Long,
+        appName: String? = null,
+        appId: String? = null,
+        adFormat: String? = null,
+    ): AdMobReportRow = AdMobReportRow(
         dateLabel = "Aug $day",
+        appName = appName,
+        appId = appId,
         estimatedEarningsMicros = revenueMicros,
         impressions = null,
         clicks = null,
         matchRate = null,
         impressionRpmMicros = null,
         dateEpochMillis = reportDate(2026, Calendar.AUGUST, day),
+        adFormat = adFormat,
     )
 
     private fun reportDate(year: Int, month: Int, day: Int): Long =

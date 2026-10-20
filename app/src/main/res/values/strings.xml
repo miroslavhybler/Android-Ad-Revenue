@@ -56,6 +56,10 @@
     <string name="statistics_chart_content_description">Estimated earnings chart. %1$s</string>
     <string name="statistics_chart_data_point">%1$s: %2$s</string>
     <string name="statistics_show_trend">Show trend</string>
+    <string name="statistics_per_app">Per app</string>
+    <string name="statistics_per_ad_format">Per ad format</string>
+    <string name="statistics_group_apps">Apps</string>
+    <string name="statistics_group_ad_formats">Ad formats</string>
     <string name="statistics_average">Average %1$s</string>
     <string name="statistics_target_settings">Revenue target settings</string>
     <string name="statistics_target_dialog_title">Revenue target</string>
@@ -76,6 +80,7 @@
     <string name="statistics_chart_target_content_description">Target line at %1$s per bar.</string>
     <string name="statistics_no_data">No revenue data for this period.</string>
     <string name="statistics_app_contribution_title">Earnings by app</string>
+    <string name="statistics_ad_format_contribution_title">Earnings by ad format</string>
     <string name="statistics_app_contribution_content_description">App earnings contribution: %1$s</string>
     <string name="statistics_offline_empty_body">There is no cached statistics data for this period. Connect to the internet to load it.</string>
     <string name="account_title">Account</string>

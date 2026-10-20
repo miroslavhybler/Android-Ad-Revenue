@@ -84,6 +84,8 @@ fun StatsPane(
         onPreviousPeriod = viewModel::showPreviousPeriod,
         onNextPeriod = viewModel::showNextPeriod,
         onShowTrendChanged = viewModel::setShowTrend,
+        onShowBreakdownChanged = viewModel::setShowBreakdown,
+        onBreakdownDimensionSelected = viewModel::selectBreakdownDimension,
         onOpenTargetSettings = { isTargetDialogVisible = true },
         modifier = modifier,
     )
@@ -115,6 +117,8 @@ private fun StatsPaneImpl(
     onPreviousPeriod: () -> Unit,
     onNextPeriod: () -> Unit,
     onShowTrendChanged: (Boolean) -> Unit,
+    onShowBreakdownChanged: (Boolean) -> Unit,
+    onBreakdownDimensionSelected: (StatisticsBreakdownDimension) -> Unit,
     onOpenTargetSettings: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -257,6 +261,13 @@ private fun StatsPaneImpl(
                 }
             }
 
+            item    {
+                StatisticsBreakdownSelector(
+                    selectedDimension = state.breakdownDimension,
+                    onDimensionSelected = onBreakdownDimensionSelected,
+                )
+            }
+
             if (state.shouldShowCachedWarning) {
                 item {
                     AssistChip(
@@ -316,15 +327,20 @@ private fun StatsPaneImpl(
                         period = checkNotNull(state.chartPeriod),
                         currencyCode = state.chartCurrencyCode,
                         showTrend = state.showTrend,
+                        showBreakdown = state.showBreakdown,
+                        breakdownDimension = state.breakdownDimension,
+                        breakdown = state.chartBreakdown,
                         revenueTarget = state.revenueTarget,
                         onShowTrendChanged = onShowTrendChanged,
+                        onShowBreakdownChanged = onShowBreakdownChanged,
                         modifier = Modifier.fillMaxWidth(),
                     )
                 }
-                if (state.appContributions.isNotEmpty()) {
+                if (state.contributions.isNotEmpty()) {
                     item {
-                        StatisticsAppContributionCard(
-                            contributions = state.appContributions,
+                        StatisticsContributionCard(
+                            contributions = state.contributions,
+                            dimension = state.breakdownDimension,
                             currencyCode = state.chartCurrencyCode,
                             modifier = Modifier.fillMaxWidth(),
                         )
@@ -364,6 +380,38 @@ private fun StatsPanePreview() {
             estimatedEarningsMicros = revenue,
         )
     }
+    val firstAppEarnings = previewBars.sumOf { bar ->
+        bar.estimatedEarningsMicros * 3L / 5L
+    }
+    val secondAppEarnings = previewBars.sumOf { bar ->
+        bar.estimatedEarningsMicros - bar.estimatedEarningsMicros * 3L / 5L
+    }
+    val previewBreakdown = StatisticsChartBreakdown(
+        dimension = StatisticsBreakdownDimension.App,
+        series = listOf(
+            StatisticsChartSeries(
+                key = "app-1",
+                label = "Revenue App",
+                estimatedEarningsMicros = firstAppEarnings,
+            ),
+            StatisticsChartSeries(
+                key = "app-2",
+                label = "Fitness App",
+                estimatedEarningsMicros = secondAppEarnings,
+            ),
+        ),
+        bars = previewBars.map { bar ->
+            val firstApp = bar.estimatedEarningsMicros * 3L / 5L
+            StatisticsStackedChartBar(
+                startDateEpochMillis = bar.startDateEpochMillis,
+                endDateEpochMillis = bar.endDateEpochMillis,
+                earningsMicrosBySeries = mapOf(
+                    "app-1" to firstApp,
+                    "app-2" to bar.estimatedEarningsMicros - firstApp,
+                ),
+            )
+        },
+    )
 
     PreviewContainer {
         StatsPaneImpl(
@@ -400,17 +448,33 @@ private fun StatsPanePreview() {
                     endDateEpochMillis = 1_787_644_800_000,
                 ),
                 chartCurrencyCode = "USD",
+                chartBreakdown = previewBreakdown,
                 revenueTarget = CachedRevenueTarget(
                     accountName = "accounts/pub-1234567890123456",
                     amountMicros = 30_000_000,
                     rangeDays = 30,
                 ),
                 showTrend = true,
+                showBreakdown = true,
+                contributions = listOf(
+                    StatisticsContribution(
+                        label = "Revenue App",
+                        estimatedEarningsMicros = firstAppEarnings,
+                        colorIndex = 0,
+                    ),
+                    StatisticsContribution(
+                        label = "Fitness App",
+                        estimatedEarningsMicros = secondAppEarnings,
+                        colorIndex = 1,
+                    ),
+                ),
             ),
             onTimeRangeSelected = {},
             onPreviousPeriod = {},
             onNextPeriod = {},
             onShowTrendChanged = {},
+            onShowBreakdownChanged = {},
+            onBreakdownDimensionSelected = {},
             onOpenTargetSettings = {},
         )
     }

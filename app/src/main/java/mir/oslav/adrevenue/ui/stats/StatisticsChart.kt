@@ -1,6 +1,7 @@
 package mir.oslav.adrevenue.ui.stats
 
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -9,7 +10,12 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.selection.toggleable
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
 import androidx.compose.material3.Card
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.MaterialTheme
@@ -53,8 +59,12 @@ internal fun StatisticsRevenueChartCard(
     period: StatisticsPeriod,
     currencyCode: String,
     showTrend: Boolean,
+    showBreakdown: Boolean,
+    breakdownDimension: StatisticsBreakdownDimension,
+    breakdown: StatisticsChartBreakdown?,
     revenueTarget: CachedRevenueTarget?,
     onShowTrendChanged: (Boolean) -> Unit,
+    onShowBreakdownChanged: (Boolean) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val barColor = MaterialTheme.colorScheme.primary
@@ -63,6 +73,8 @@ internal fun StatisticsRevenueChartCard(
     val targetColor = MaterialTheme.colorScheme.secondary
     val gridColor = MaterialTheme.colorScheme.outlineVariant
     val contentColor = MaterialTheme.colorScheme.onSurfaceVariant
+    val popupContainerColor = MaterialTheme.colorScheme.inverseSurface
+    val popupContentColor = MaterialTheme.colorScheme.inverseOnSurface
     val chartData = remember(bars, timeRange, barColor) {
         bars.map { bar ->
             val label = formatStatisticsBarLabel(bar = bar, timeRange = timeRange)
@@ -78,8 +90,19 @@ internal fun StatisticsRevenueChartCard(
             )
         }
     }
-    val revenueValues = remember(chartData) {
-        chartData.flatMap { chartBars -> chartBars.values }.map { data -> data.value }
+    val revenueValues = remember(bars) {
+        bars.map { bar -> bar.estimatedEarningsMicros / MICROS_PER_CURRENCY_UNIT }
+    }
+    val stackedBoundValues = remember(breakdown) {
+        breakdown?.bars?.flatMap { bar ->
+            val values = breakdown.series.map { series ->
+                (bar.earningsMicrosBySeries[series.key] ?: 0L) / MICROS_PER_CURRENCY_UNIT
+            }
+            listOf(
+                values.filter { value -> value > 0.0 }.sum(),
+                values.filter { value -> value < 0.0 }.sum(),
+            )
+        }
     }
     val targetProjection = remember(revenueTarget, timeRange, period, bars.size) {
         revenueTarget?.let { configuredTarget ->
@@ -93,7 +116,8 @@ internal fun StatisticsRevenueChartCard(
     }
     val targetLineAmount = targetProjection?.chartLineAmountMicros
         ?.div(MICROS_PER_CURRENCY_UNIT)
-    val chartBoundValues = revenueValues + listOfNotNull(targetLineAmount)
+    val chartBoundValues =
+        (stackedBoundValues ?: revenueValues) + listOfNotNull(targetLineAmount)
     val minValue = minOf(0.0, chartBoundValues.minOrNull() ?: 0.0)
     val maxValue = maxOf(0.0, chartBoundValues.maxOrNull() ?: 0.0)
         .takeUnless { value -> value == 0.0 && minValue == 0.0 }
@@ -158,52 +182,76 @@ internal fun StatisticsRevenueChartCard(
                     .height(height = STATISTICS_CHART_HEIGHT)
                     .semantics { contentDescription = chartContentDescription },
             ) {
-                ColumnChart(
-                    data = chartData,
-                    modifier = Modifier.matchParentSize(),
-                    barProperties = BarProperties(
-                        thickness = statisticsBarThickness(barCount = bars.size),
-                        spacing = STATISTICS_CHART_BAR_SPACING,
-                        cornerRadius = Bars.Data.Radius.Rectangle(
-                            topLeft = STATISTICS_CHART_BAR_RADIUS,
-                            topRight = STATISTICS_CHART_BAR_RADIUS,
+                if (breakdown == null) {
+                    ColumnChart(
+                        data = chartData,
+                        modifier = Modifier.matchParentSize(),
+                        barProperties = BarProperties(
+                            thickness = statisticsBarThickness(barCount = bars.size),
+                            spacing = STATISTICS_CHART_BAR_SPACING,
+                            cornerRadius = Bars.Data.Radius.Rectangle(
+                                topLeft = STATISTICS_CHART_BAR_RADIUS,
+                                topRight = STATISTICS_CHART_BAR_RADIUS,
+                            ),
                         ),
-                    ),
-                    labelProperties = LabelProperties(
-                        enabled = true,
-                        textStyle = MaterialTheme.typography.labelSmall.copy(color = contentColor),
-                        padding = STATISTICS_CHART_LABEL_PADDING,
-                    ),
-                    labelHelperProperties = LabelHelperProperties(enabled = false),
-                    indicatorProperties = HorizontalIndicatorProperties(
-                        textStyle = MaterialTheme.typography.labelSmall.copy(color = contentColor),
-                        count = IndicatorCount.CountBased(
-                            count = STATISTICS_CHART_INDICATOR_COUNT,
+                        labelProperties = LabelProperties(
+                            enabled = true,
+                            textStyle = MaterialTheme.typography.labelSmall.copy(
+                                color = contentColor,
+                            ),
+                            padding = STATISTICS_CHART_LABEL_PADDING,
                         ),
-                        contentBuilder = ::formatStatisticsChartAmount,
-                    ),
-                    gridProperties = GridProperties(
-                        xAxisProperties = GridProperties.AxisProperties(
+                        labelHelperProperties = LabelHelperProperties(enabled = false),
+                        indicatorProperties = HorizontalIndicatorProperties(
+                            textStyle = MaterialTheme.typography.labelSmall.copy(
+                                color = contentColor,
+                            ),
+                            count = IndicatorCount.CountBased(
+                                count = STATISTICS_CHART_INDICATOR_COUNT,
+                            ),
+                            contentBuilder = ::formatStatisticsChartAmount,
+                        ),
+                        gridProperties = GridProperties(
+                            xAxisProperties = GridProperties.AxisProperties(
+                                color = SolidColor(value = gridColor),
+                                lineCount = STATISTICS_CHART_INDICATOR_COUNT,
+                            ),
+                            yAxisProperties = GridProperties.AxisProperties(enabled = false),
+                        ),
+                        zeroLineProperties = ZeroLineProperties(
+                            enabled = minValue < 0.0,
                             color = SolidColor(value = gridColor),
-                            lineCount = STATISTICS_CHART_INDICATOR_COUNT,
                         ),
-                        yAxisProperties = GridProperties.AxisProperties(enabled = false),
-                    ),
-                    zeroLineProperties = ZeroLineProperties(
-                        enabled = minValue < 0.0,
-                        color = SolidColor(value = gridColor),
-                    ),
-                    popupProperties = PopupProperties(
-                        contentBuilder = { popup ->
-                            formatStatisticsMoney(
-                                micros = popup.value * MICROS_PER_CURRENCY_UNIT,
-                                currencyCode = currencyCode,
-                            )
-                        },
-                    ),
-                    minValue = minValue,
-                    maxValue = maxValue,
-                )
+                        popupProperties = PopupProperties(
+                            textStyle = MaterialTheme.typography.labelSmall.copy(
+                                color = popupContentColor,
+                            ),
+                            containerColor = popupContainerColor,
+                            contentBuilder = { popup ->
+                                formatStatisticsMoney(
+                                    micros = popup.value * MICROS_PER_CURRENCY_UNIT,
+                                    currencyCode = currencyCode,
+                                )
+                            },
+                        ),
+                        minValue = minValue,
+                        maxValue = maxValue,
+                    )
+                } else {
+                    StatisticsStackedColumnChart(
+                        breakdown = breakdown,
+                        timeRange = timeRange,
+                        currencyCode = currencyCode,
+                        minValue = minValue,
+                        maxValue = maxValue,
+                        gridColor = gridColor,
+                        contentColor = contentColor,
+                        popupContainerColor = popupContainerColor,
+                        popupContentColor = popupContentColor,
+                        labelTextStyle = MaterialTheme.typography.labelSmall,
+                        modifier = Modifier.matchParentSize(),
+                    )
+                }
 
                 if (showTrend || targetProjection != null) {
                     Canvas(
@@ -239,6 +287,10 @@ internal fun StatisticsRevenueChartCard(
                         }
                     }
                 }
+            }
+
+            breakdown?.let { visibleBreakdown ->
+                StatisticsChartSeriesLegend(series = visibleBreakdown.series)
             }
 
             targetProjection?.let { projection ->
@@ -314,6 +366,58 @@ internal fun StatisticsRevenueChartCard(
                         overflow = TextOverflow.Ellipsis,
                     )
                 }
+            }
+
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .toggleable(
+                        value = showBreakdown,
+                        role = Role.Checkbox,
+                        onValueChange = onShowBreakdownChanged,
+                    ),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Checkbox(
+                    checked = showBreakdown,
+                    onCheckedChange = null,
+                )
+                Text(
+                    text = stringResource(
+                        id = when (breakdownDimension) {
+                            StatisticsBreakdownDimension.App -> R.string.statistics_per_app
+                            StatisticsBreakdownDimension.AdFormat ->
+                                R.string.statistics_per_ad_format
+                        },
+                    ),
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun StatisticsChartSeriesLegend(series: List<StatisticsChartSeries>) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .horizontalScroll(state = rememberScrollState()),
+        horizontalArrangement = Arrangement.spacedBy(space = 14.dp),
+    ) {
+        series.forEachIndexed { index, item ->
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(space = 6.dp),
+            ) {
+                Canvas(modifier = Modifier.size(size = 10.dp)) {
+                    drawCircle(color = statisticsChartSeriesColor(index = index))
+                }
+                Text(
+                    text = item.label,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 1,
+                )
             }
         }
     }

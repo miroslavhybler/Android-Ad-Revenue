@@ -24,7 +24,6 @@ import androidx.compose.animation.core.tween
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.res.painterResource
@@ -33,26 +32,24 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import mir.oslav.adrevenue.R
 
-private val contributionColors = listOf(
-    Color(0xFF5D54C5), Color(0xFF006875), Color(0xFF7B5800),
-    Color(0xFFB04A67), Color(0xFF4D7C5A), Color(0xFF7A5C99),
-)
-
 @Composable
-internal fun StatisticsAppContributionCard(
-    contributions: List<StatisticsAppContribution>,
+internal fun StatisticsContributionCard(
+    contributions: List<StatisticsContribution>,
+    dimension: StatisticsBreakdownDimension,
     currencyCode: String,
     modifier: Modifier = Modifier,
 ) {
     val totalMicros = contributions.sumOf { it.estimatedEarningsMicros }
-    val colors = remember(contributions.size) {
-        contributions.indices.map { index -> contributionColors[index % contributionColors.size] }
+    val colors = remember(contributions) {
+        contributions.map { contribution ->
+            statisticsChartSeriesColor(index = contribution.colorIndex)
+        }
     }
     val animatedEarnings = contributions.map { contribution ->
         animateFloatAsState(
             targetValue = contribution.estimatedEarningsMicros.toFloat(),
             animationSpec = tween(durationMillis = 450),
-            label = "${contribution.appName} earnings",
+            label = "${contribution.label} earnings",
         ).value
     }
     val animatedTotal = animatedEarnings.sum().coerceAtLeast(1f)
@@ -63,7 +60,15 @@ internal fun StatisticsAppContributionCard(
             verticalArrangement = Arrangement.spacedBy(space = 12.dp),
         ) {
             Text(
-                text = stringResource(R.string.statistics_app_contribution_title),
+                text = stringResource(
+                    id = when (dimension) {
+                        StatisticsBreakdownDimension.App ->
+                            R.string.statistics_app_contribution_title
+
+                        StatisticsBreakdownDimension.AdFormat ->
+                            R.string.statistics_ad_format_contribution_title
+                    },
+                ),
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.SemiBold,
             )
@@ -99,7 +104,10 @@ internal fun StatisticsAppContributionCard(
                 val percentage =
                     contribution.estimatedEarningsMicros.toDouble() / totalMicros * 100.0
                 Row(modifier = Modifier.fillMaxWidth()) {
-                    if (contribution.iconUrl != null) {
+                    if (
+                        dimension == StatisticsBreakdownDimension.App &&
+                        contribution.iconUrl != null
+                    ) {
                         AsyncImage(
                             modifier = Modifier
                                 .size(size = 28.dp)
@@ -110,17 +118,24 @@ internal fun StatisticsAppContributionCard(
                             placeholder = painterResource(id = R.drawable.ic_jetpack_compose_logo),
                             error = painterResource(id = R.drawable.ic_jetpack_compose_logo),
                         )
-                    } else {
+                    } else if (dimension == StatisticsBreakdownDimension.App) {
                         Icon(
                             imageVector = Icons.Outlined.Apps,
                             contentDescription = null,
                             tint = colors[index],
                             modifier = Modifier.size(size = 28.dp)
                         )
+                    } else {
+                        Canvas(modifier = Modifier.size(size = 28.dp)) {
+                            drawCircle(
+                                color = colors[index],
+                                radius = 7.dp.toPx(),
+                            )
+                        }
                     }
                     Spacer(modifier = Modifier.width(width = 8.dp))
                     Text(
-                        text = contribution.appName,
+                        text = contribution.label,
                         modifier = Modifier.weight(weight = 1f),
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,

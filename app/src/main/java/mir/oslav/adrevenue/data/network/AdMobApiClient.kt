@@ -3,7 +3,7 @@ package mir.oslav.adrevenue.data.network
 import androidx.annotation.Keep
 import io.ktor.client.HttpClient
 import io.ktor.client.call.body
-import io.ktor.client.engine.android.Android
+import io.ktor.client.engine.okhttp.OkHttp
 import io.ktor.client.plugins.HttpTimeout
 import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
 import io.ktor.client.request.accept
@@ -173,6 +173,13 @@ class AdMobApiClient @Inject constructor(
                     ?.takeIf { it.isNotBlank() }
                     ?: appId
                         ?.takeIf { it.isNotBlank() }
+                val formatDimension = dimensionValues["FORMAT"].asObjectOrNull()
+                val adFormat = formatDimension
+                    ?.stringValue("displayLabel")
+                    ?.takeIf { it.isNotBlank() }
+                    ?: formatDimension
+                        ?.stringValue("value")
+                        ?.takeIf { it.isNotBlank() }
                 rows += AdMobReportRow(
                     dateLabel = reportDate.label,
                     appName = appName,
@@ -185,6 +192,7 @@ class AdMobApiClient @Inject constructor(
                     impressionRpmMicros = metricValues["IMPRESSION_RPM"].asObjectOrNull()
                         ?.asLongValue(),
                     dateEpochMillis = reportDate.epochMillis,
+                    adFormat = adFormat,
                 )
             }
 
@@ -264,7 +272,7 @@ class AdMobApiClient @Inject constructor(
     private fun JsonElement?.asObjectOrNull(): JsonObject? = this as? JsonObject
 
     private companion object {
-        fun createDefaultHttpClient(json: Json): HttpClient = HttpClient(engineFactory = Android) {
+        fun createDefaultHttpClient(json: Json): HttpClient = HttpClient(engineFactory = OkHttp) {
             expectSuccess = false
             install(plugin = ContentNegotiation) {
                 json(json = json)
@@ -273,10 +281,6 @@ class AdMobApiClient @Inject constructor(
                 connectTimeoutMillis = AdMobApiConstants.ConnectTimeoutMillis
                 requestTimeoutMillis = AdMobApiConstants.ReadTimeoutMillis
                 socketTimeoutMillis = AdMobApiConstants.ReadTimeoutMillis
-            }
-            engine {
-                connectTimeout = AdMobApiConstants.ConnectTimeoutMillis.toInt()
-                socketTimeout = AdMobApiConstants.ReadTimeoutMillis.toInt()
             }
         }
     }

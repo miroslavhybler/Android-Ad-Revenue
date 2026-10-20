@@ -60,23 +60,40 @@ class StatsViewModel @Inject constructor(
         val period = selectedPeriod.toPeriod()
         val cachedReport = snapshot.findStatisticsReport(period = period)
         val reportRows = cachedReport?.report?.rows.orEmpty()
-        val appMetadata = snapshot.apps.associateBy { app -> app.appId }
-        val appContributions = reportRows
-            .asSequence()
-            .filter { row -> row.appName != null && (row.estimatedEarningsMicros ?: 0L) > 0L }
-            .groupBy { row -> row.appName!! }
-            .map { (appName, rows) ->
-                StatisticsAppContribution(
-                    appName = appName,
-                    appStoreId = rows.firstNotNullOfOrNull { row -> appMetadata[row.appId]?.appStoreId },
-                    iconUrl = rows.firstNotNullOfOrNull { row -> snapshot.appIconUrls[row.appId] },
-                    estimatedEarningsMicros = rows.sumOf { row ->
-                        row.estimatedEarningsMicros ?: 0L
-                    },
-                )
-            }
-            .sortedByDescending { contribution -> contribution.estimatedEarningsMicros }
-            .toList()
+        val appBreakdown = buildStatisticsChartBreakdown(
+            rows = reportRows,
+            timeRange = selectedPeriod.timeRange,
+            period = period,
+            dimension = StatisticsBreakdownDimension.App,
+        )
+        val selectedBreakdown = when (selectedPeriod.breakdownDimension) {
+            StatisticsBreakdownDimension.App -> appBreakdown
+            StatisticsBreakdownDimension.AdFormat -> buildStatisticsChartBreakdown(
+                rows = reportRows,
+                timeRange = selectedPeriod.timeRange,
+                period = period,
+                dimension = StatisticsBreakdownDimension.AdFormat,
+            )
+        }
+        val rowsByApp = reportRows.groupBy { row -> row.statisticsAppSeriesKey() }
+        val contributions = selectedBreakdown.series.mapIndexedNotNull { colorIndex, series ->
+            if (series.estimatedEarningsMicros <= 0L) return@mapIndexedNotNull null
+            StatisticsContribution(
+                label = series.label,
+                iconUrl = if (selectedPeriod.breakdownDimension == StatisticsBreakdownDimension.App) {
+                    rowsByApp.getValue(series.key).firstNotNullOfOrNull { row ->
+                        snapshot.appIconUrls[row.appId]
+                    }
+                } else {
+                    null
+                },
+                estimatedEarningsMicros = series.estimatedEarningsMicros,
+                colorIndex = colorIndex,
+            )
+        }
+        val chartBreakdown = selectedBreakdown.takeIf {
+            selectedPeriod.showBreakdown && reportRows.isNotEmpty()
+        }
         val currencyCode = cachedReport?.report?.currencyCode
             ?.takeIf { code -> code.isNotBlank() }
             ?: snapshot.selectedAccount?.currencyCode.orEmpty()
@@ -85,6 +102,8 @@ class StatsViewModel @Inject constructor(
             periodOffset = selectedPeriod.periodOffset,
             period = period,
             showTrend = selectedPeriod.showTrend,
+            showBreakdown = selectedPeriod.showBreakdown,
+            breakdownDimension = selectedPeriod.breakdownDimension,
             isOnline = online,
             isLoading = operation.isLoading,
             needsAuthorization = operation.needsAuthorization,
@@ -106,7 +125,8 @@ class StatsViewModel @Inject constructor(
             chartTimeRange = selectedPeriod.timeRange.takeIf { reportRows.isNotEmpty() },
             chartPeriod = period.takeIf { reportRows.isNotEmpty() },
             chartCurrencyCode = currencyCode,
-            appContributions = appContributions,
+            chartBreakdown = chartBreakdown,
+            contributions = contributions,
             revenueTarget = snapshot.findRevenueTarget(),
         )
     }
@@ -214,6 +234,14 @@ class StatsViewModel @Inject constructor(
 
     fun setShowTrend(showTrend: Boolean) {
         selection.update { it.copy(showTrend = showTrend) }
+    }
+
+    fun setShowBreakdown(showBreakdown: Boolean) {
+        selection.update { it.copy(showBreakdown = showBreakdown) }
+    }
+
+    fun selectBreakdownDimension(dimension: StatisticsBreakdownDimension) {
+        selection.update { it.copy(breakdownDimension = dimension) }
     }
 
     fun setRevenueTarget(amountMicros: Long, rangeDays: Int) {
@@ -338,6 +366,8 @@ data class StatsUiState(
     val periodOffset: Int = 0,
     val period: StatisticsPeriod,
     val showTrend: Boolean = false,
+    val showBreakdown: Boolean = false,
+    val breakdownDimension: StatisticsBreakdownDimension = StatisticsBreakdownDimension.App,
     val isOnline: Boolean = true,
     val isLoading: Boolean = false,
     val needsAuthorization: Boolean = false,
@@ -350,8 +380,9 @@ data class StatsUiState(
     val chartTimeRange: StatisticsTimeRange? = null,
     val chartPeriod: StatisticsPeriod? = null,
     val chartCurrencyCode: String = "",
+    val chartBreakdown: StatisticsChartBreakdown? = null,
     val revenueTarget: CachedRevenueTarget? = null,
-    val appContributions: List<StatisticsAppContribution> = emptyList(),
+    val contributions: List<StatisticsContribution> = emptyList(),
     val isShowingPreviousChart: Boolean = false,
 ) {
     val canShowNextPeriod: Boolean
@@ -373,11 +404,12 @@ data class StatsUiState(
         get() = !isOnline && hasCachedData
 }
 
-data class StatisticsAppContribution(
-    val appName: String,
-    val appStoreId: String? = null,
+/** One app or ad-format contribution rendered by the statistics donut. */
+data class StatisticsContribution(
+    val label: String,
     val iconUrl: String? = null,
     val estimatedEarningsMicros: Long,
+    val colorIndex: Int = 0,
 )
 
 private data class StatisticsSelection(
@@ -385,6 +417,8 @@ private data class StatisticsSelection(
     val periodOffset: Int = 0,
     val anchorEpochMillis: Long = System.currentTimeMillis(),
     val showTrend: Boolean = false,
+    val showBreakdown: Boolean = false,
+    val breakdownDimension: StatisticsBreakdownDimension = StatisticsBreakdownDimension.App,
 ) {
     fun toPeriod(): StatisticsPeriod = calculateStatisticsPeriod(
         timeRange = timeRange,
@@ -440,7 +474,12 @@ internal fun StatsUiState.retainChartWhileLoading(previous: StatsUiState): Stats
         chartTimeRange = previous.chartTimeRange,
         chartPeriod = previous.chartPeriod,
         chartCurrencyCode = previous.chartCurrencyCode,
-        appContributions = previous.appContributions,
+        chartBreakdown = previous.chartBreakdown?.takeIf { breakdown ->
+            showBreakdown && breakdown.dimension == breakdownDimension
+        },
+        contributions = previous.contributions.takeIf {
+            previous.breakdownDimension == breakdownDimension
+        }.orEmpty(),
         isShowingPreviousChart = true,
     )
 }
