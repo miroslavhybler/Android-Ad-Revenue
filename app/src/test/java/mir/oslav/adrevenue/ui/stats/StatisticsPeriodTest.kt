@@ -75,6 +75,124 @@ class StatisticsPeriodTest {
     }
 
     @Test
+    fun currentRanges_fillBothChartsWithEmptyBucketsThroughTheSelectedPeriod() {
+        data class ExpectedChartRange(
+            val timeRange: StatisticsTimeRange,
+            val expectedBarCount: Int,
+            val expectedEndEpochMillis: Long,
+        )
+
+        val anchorEpochMillis = reportDate(2026, Calendar.AUGUST, 25)
+        val expectedRanges = listOf(
+            ExpectedChartRange(
+                timeRange = StatisticsTimeRange.Week,
+                expectedBarCount = 7,
+                expectedEndEpochMillis = reportDate(2026, Calendar.AUGUST, 30),
+            ),
+            ExpectedChartRange(
+                timeRange = StatisticsTimeRange.Month,
+                expectedBarCount = 5,
+                expectedEndEpochMillis = reportDate(2026, Calendar.AUGUST, 31),
+            ),
+            ExpectedChartRange(
+                timeRange = StatisticsTimeRange.Quarter,
+                expectedBarCount = 14,
+                expectedEndEpochMillis = reportDate(2026, Calendar.SEPTEMBER, 30),
+            ),
+            ExpectedChartRange(
+                timeRange = StatisticsTimeRange.Year,
+                expectedBarCount = 12,
+                expectedEndEpochMillis = reportDate(2026, Calendar.DECEMBER, 31),
+            ),
+        )
+        val rows = listOf(
+            reportRow(
+                day = 25,
+                revenueMicros = 2_500_000L,
+                appName = "Current app",
+                appId = "app-current",
+            ),
+        )
+
+        expectedRanges.forEach { expected ->
+            val reportPeriod = calculateStatisticsPeriod(
+                timeRange = expected.timeRange,
+                periodOffset = 0,
+                anchorEpochMillis = anchorEpochMillis,
+            )
+            val chartPeriod = expandStatisticsPeriodForChart(
+                timeRange = expected.timeRange,
+                period = reportPeriod,
+            )
+            val bars = buildStatisticsChartBars(
+                rows = rows,
+                timeRange = expected.timeRange,
+                period = chartPeriod,
+            )
+            val breakdown = buildStatisticsChartBreakdown(
+                rows = rows,
+                timeRange = expected.timeRange,
+                period = chartPeriod,
+                dimension = StatisticsBreakdownDimension.App,
+            )
+
+            assertEquals(
+                expected.timeRange.name,
+                expected.expectedEndEpochMillis,
+                chartPeriod.endDateEpochMillis,
+            )
+            assertEquals(expected.timeRange.name, expected.expectedBarCount, bars.size)
+            assertEquals(expected.timeRange.name, expected.expectedBarCount, breakdown.bars.size)
+            assertEquals(
+                expected.timeRange.name,
+                expected.expectedEndEpochMillis,
+                bars.last().endDateEpochMillis,
+            )
+            assertEquals(expected.timeRange.name, 0L, bars.last().estimatedEarningsMicros)
+            assertTrue(
+                expected.timeRange.name,
+                breakdown.bars.last().earningsMicrosBySeries.isEmpty(),
+            )
+            assertEquals(
+                expected.timeRange.name,
+                rows.single().estimatedEarningsMicros,
+                bars.sumOf { bar -> bar.estimatedEarningsMicros },
+            )
+        }
+    }
+
+    @Test
+    fun trendAverage_excludesFutureEmptyBuckets() {
+        val reportPeriod = calculateStatisticsPeriod(
+            timeRange = StatisticsTimeRange.Week,
+            periodOffset = 0,
+            anchorEpochMillis = reportDate(2026, Calendar.AUGUST, 25),
+        )
+        val chartPeriod = expandStatisticsPeriodForChart(
+            timeRange = StatisticsTimeRange.Week,
+            period = reportPeriod,
+        )
+        val bars = buildStatisticsChartBars(
+            rows = listOf(
+                reportRow(day = 24, revenueMicros = 1_000_000L),
+                reportRow(day = 25, revenueMicros = 3_000_000L),
+            ),
+            timeRange = StatisticsTimeRange.Week,
+            period = chartPeriod,
+        )
+
+        assertEquals(7, bars.size)
+        assertEquals(
+            2.0,
+            calculateStatisticsTrendAmount(
+                bars = bars,
+                dataEndDateEpochMillis = reportPeriod.endDateEpochMillis,
+            ),
+            0.0,
+        )
+    }
+
+    @Test
     fun weekAggregation_fillsMissingDaysAndSumsRevenue() {
         val period = StatisticsPeriod(
             startDateEpochMillis = reportDate(2026, Calendar.AUGUST, 24),
@@ -249,6 +367,7 @@ class StatisticsPeriodTest {
             ),
             chartTimeRange = StatisticsTimeRange.Week,
             chartPeriod = previousPeriod,
+            chartDataEndDateEpochMillis = previousPeriod.endDateEpochMillis,
             chartCurrencyCode = "USD",
         )
         val current = StatsUiState(
@@ -267,6 +386,10 @@ class StatisticsPeriodTest {
         assertTrue(retained.isShowingPreviousChart)
         assertEquals(previous.chartBars, retained.chartBars)
         assertEquals(StatisticsTimeRange.Week, retained.chartTimeRange)
+        assertEquals(
+            previous.chartDataEndDateEpochMillis,
+            retained.chartDataEndDateEpochMillis,
+        )
     }
 
     @Test
@@ -287,6 +410,7 @@ class StatisticsPeriodTest {
             ),
             chartTimeRange = StatisticsTimeRange.Week,
             chartPeriod = period,
+            chartDataEndDateEpochMillis = period.endDateEpochMillis,
         )
         val current = StatsUiState(
             period = period,

@@ -14,8 +14,13 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
+import androidx.compose.ui.geometry.RoundRect
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.drawscope.DrawScope
+import androidx.compose.ui.graphics.drawscope.DrawStyle
+import androidx.compose.ui.graphics.drawscope.Fill
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.onSizeChanged
@@ -31,7 +36,12 @@ import kotlinx.coroutines.delay
 import kotlin.math.max
 import kotlin.math.min
 
-/** Draws true stacked columns while retaining themed labels and touch tooltips. */
+/**
+ * Draws true stacked columns while retaining themed labels and touch tooltips.
+ *
+ * Compose Charts 1.0.0 renders multiple values as grouped columns and does not expose a stacked
+ * mode, so this chart remains custom until the library can preserve the current visualization.
+ */
 @Composable
 internal fun StatisticsStackedColumnChart(
     breakdown: StatisticsChartBreakdown,
@@ -135,10 +145,9 @@ internal fun StatisticsStackedColumnChart(
         )
         animatedTargets.forEach { target ->
             val color = statisticsChartSeriesColor(index = target.seriesIndex)
-            drawRect(
+            drawStackedSegment(
+                target = target,
                 color = color,
-                topLeft = target.rect.topLeft,
-                size = target.rect.size,
             )
         }
 
@@ -167,13 +176,13 @@ internal fun StatisticsStackedColumnChart(
         }
 
         selectedSegment?.let { selected ->
-            val selectedRect = fullSizeTargets.firstOrNull { target ->
+            val selectedTarget = fullSizeTargets.firstOrNull { target ->
                 target.dataIndex == selected.dataIndex && target.seriesIndex == selected.seriesIndex
-            }?.rect ?: return@let
-            drawRect(
+            } ?: return@let
+            val selectedRect = selectedTarget.rect
+            drawStackedSegment(
+                target = selectedTarget,
                 color = popupContentColor.copy(alpha = STACKED_CHART_SELECTION_ALPHA),
-                topLeft = selectedRect.topLeft,
-                size = selectedRect.size,
                 style = Stroke(width = STACKED_CHART_SELECTION_WIDTH.toPx()),
             )
 
@@ -254,8 +263,13 @@ private fun buildStackedSegmentTargets(
             var positiveBase = 0.0
             var negativeBase = 0.0
             val centerX = layout.barCenter(index = dataIndex, barCount = breakdown.bars.size)
-            breakdown.series.forEachIndexed seriesLoop@{ seriesIndex, series ->
-                val valueMicros = bar.earningsMicrosBySeries[series.key] ?: 0L
+            val valuesMicros = breakdown.series.map { series ->
+                bar.earningsMicrosBySeries[series.key] ?: 0L
+            }
+            val topSeriesIndex = valuesMicros.indexOfLast { valueMicros -> valueMicros > 0L }
+            val bottomSeriesIndex = valuesMicros.indexOfLast { valueMicros -> valueMicros < 0L }
+            breakdown.series.forEachIndexed seriesLoop@{ seriesIndex, _ ->
+                val valueMicros = valuesMicros[seriesIndex]
                 if (valueMicros == 0L) return@seriesLoop
                 val value = valueMicros / MICROS_PER_CURRENCY_UNIT
                 val startValue: Double
@@ -284,6 +298,8 @@ private fun buildStackedSegmentTargets(
                         dataIndex = dataIndex,
                         seriesIndex = seriesIndex,
                         valueMicros = valueMicros,
+                        roundTopCorners = seriesIndex == topSeriesIndex,
+                        roundBottomCorners = seriesIndex == bottomSeriesIndex,
                     ),
                 )
             }
@@ -334,7 +350,40 @@ private data class StackedSegmentTarget(
     val dataIndex: Int,
     val seriesIndex: Int,
     val valueMicros: Long,
+    val roundTopCorners: Boolean,
+    val roundBottomCorners: Boolean,
 )
+
+private fun DrawScope.drawStackedSegment(
+    target: StackedSegmentTarget,
+    color: Color,
+    style: DrawStyle = Fill,
+) {
+    val radius = min(
+        STATISTICS_CHART_BAR_RADIUS.toPx(),
+        min(target.rect.width, target.rect.height) / 2f,
+    ).coerceAtLeast(0f)
+    val roundedCorner = CornerRadius(x = radius, y = radius)
+    val path = Path().apply {
+        addRoundRect(
+            RoundRect(
+                left = target.rect.left,
+                top = target.rect.top,
+                right = target.rect.right,
+                bottom = target.rect.bottom,
+                topLeftCornerRadius = roundedCorner.takeIf { target.roundTopCorners }
+                    ?: CornerRadius.Zero,
+                topRightCornerRadius = roundedCorner.takeIf { target.roundTopCorners }
+                    ?: CornerRadius.Zero,
+                bottomRightCornerRadius = roundedCorner.takeIf { target.roundBottomCorners }
+                    ?: CornerRadius.Zero,
+                bottomLeftCornerRadius = roundedCorner.takeIf { target.roundBottomCorners }
+                    ?: CornerRadius.Zero,
+            ),
+        )
+    }
+    drawPath(path = path, color = color, style = style)
+}
 
 private const val STACKED_CHART_INDICATOR_COUNT = 4
 private const val STACKED_CHART_ANIMATION_MILLIS = 500

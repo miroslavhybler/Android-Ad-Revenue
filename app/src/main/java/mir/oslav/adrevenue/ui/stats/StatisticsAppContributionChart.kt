@@ -1,5 +1,7 @@
 package mir.oslav.adrevenue.ui.stats
 
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -10,26 +12,26 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.material3.Card
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
-import androidx.compose.material3.Icon
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Apps
-import androidx.compose.ui.layout.ContentScale
-import coil3.compose.AsyncImage
+import androidx.compose.material3.Card
+import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.core.tween
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.drawscope.Stroke
-import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import coil3.compose.AsyncImage
+import ir.ehsannarmani.compose_charts.PieChart
+import ir.ehsannarmani.compose_charts.models.LabelHelperProperties
+import ir.ehsannarmani.compose_charts.models.Pie
 import mir.oslav.adrevenue.R
 
 @Composable
@@ -52,7 +54,13 @@ internal fun StatisticsContributionCard(
             label = "${contribution.label} earnings",
         ).value
     }
-    val animatedTotal = animatedEarnings.sum().coerceAtLeast(1f)
+    val pieData = contributions.mapIndexed { index, contribution ->
+        Pie(
+            label = contribution.label,
+            data = animatedEarnings[index].coerceAtLeast(0f).toDouble(),
+            color = colors[index],
+        )
+    }
 
     Card(modifier = modifier) {
         Column(
@@ -72,34 +80,17 @@ internal fun StatisticsContributionCard(
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.SemiBold,
             )
-            Canvas(
+            PieChart(
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(height = 190.dp),
-            ) {
-                val diameter = minOf(a = size.width, b = size.height)
-                val topLeft = androidx.compose.ui.geometry.Offset(
-                    x = (size.width - diameter) / 2f,
-                    y = (size.height - diameter) / 2f,
-                )
-                var startAngle = -90f
-                contributions.forEachIndexed { index, _ ->
-                    val sweep = animatedEarnings[index] / animatedTotal * 360f
-                    drawArc(
-                        color = colors[index],
-                        startAngle = startAngle,
-                        sweepAngle = sweep,
-                        useCenter = false,
-                        topLeft = topLeft,
-                        size = androidx.compose.ui.geometry.Size(
-                            width = diameter,
-                            height = diameter
-                        ),
-                        style = Stroke(width = 30.dp.toPx()),
-                    )
-                    startAngle += sweep
-                }
-            }
+                data = pieData,
+                startDegree = -90f,
+                selectedScale = 1f,
+                selectedPaddingDegree = 0f,
+                labelHelperProperties = LabelHelperProperties(enabled = false),
+                style = Pie.Style.Stroke(width = 30.dp),
+            )
             contributions.forEachIndexed { index, contribution ->
                 val percentage =
                     contribution.estimatedEarningsMicros.toDouble() / totalMicros * 100.0

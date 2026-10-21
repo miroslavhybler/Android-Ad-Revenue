@@ -325,6 +325,9 @@ private fun StatsPaneImpl(
                         bars = state.chartBars,
                         timeRange = checkNotNull(state.chartTimeRange),
                         period = checkNotNull(state.chartPeriod),
+                        dataEndDateEpochMillis = checkNotNull(
+                            state.chartDataEndDateEpochMillis,
+                        ),
                         currencyCode = state.chartCurrencyCode,
                         showTrend = state.showTrend,
                         showBreakdown = state.showBreakdown,
@@ -447,6 +450,7 @@ private fun StatsPanePreview() {
                     startDateEpochMillis = 1_787_126_400_000,
                     endDateEpochMillis = 1_787_644_800_000,
                 ),
+                chartDataEndDateEpochMillis = 1_787_644_800_000,
                 chartCurrencyCode = "USD",
                 chartBreakdown = previewBreakdown,
                 revenueTarget = CachedRevenueTarget(

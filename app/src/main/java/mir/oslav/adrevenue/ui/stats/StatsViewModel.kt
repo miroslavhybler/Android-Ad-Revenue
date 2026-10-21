@@ -58,12 +58,16 @@ class StatsViewModel @Inject constructor(
         flow4 = operationState,
     ) { snapshot, online, selectedPeriod, operation ->
         val period = selectedPeriod.toPeriod()
+        val chartPeriod = expandStatisticsPeriodForChart(
+            timeRange = selectedPeriod.timeRange,
+            period = period,
+        )
         val cachedReport = snapshot.findStatisticsReport(period = period)
         val reportRows = cachedReport?.report?.rows.orEmpty()
         val appBreakdown = buildStatisticsChartBreakdown(
             rows = reportRows,
             timeRange = selectedPeriod.timeRange,
-            period = period,
+            period = chartPeriod,
             dimension = StatisticsBreakdownDimension.App,
         )
         val selectedBreakdown = when (selectedPeriod.breakdownDimension) {
@@ -71,7 +75,7 @@ class StatsViewModel @Inject constructor(
             StatisticsBreakdownDimension.AdFormat -> buildStatisticsChartBreakdown(
                 rows = reportRows,
                 timeRange = selectedPeriod.timeRange,
-                period = period,
+                period = chartPeriod,
                 dimension = StatisticsBreakdownDimension.AdFormat,
             )
         }
@@ -118,12 +122,15 @@ class StatsViewModel @Inject constructor(
                     buildStatisticsChartBars(
                         rows = nonEmptyRows,
                         timeRange = selectedPeriod.timeRange,
-                        period = period,
+                        period = chartPeriod,
                     )
                 }
                 .orEmpty(),
             chartTimeRange = selectedPeriod.timeRange.takeIf { reportRows.isNotEmpty() },
-            chartPeriod = period.takeIf { reportRows.isNotEmpty() },
+            chartPeriod = chartPeriod.takeIf { reportRows.isNotEmpty() },
+            chartDataEndDateEpochMillis = period.endDateEpochMillis.takeIf {
+                reportRows.isNotEmpty()
+            },
             chartCurrencyCode = currencyCode,
             chartBreakdown = chartBreakdown,
             contributions = contributions,
@@ -379,6 +386,7 @@ data class StatsUiState(
     val chartBars: List<StatisticsChartBar> = emptyList(),
     val chartTimeRange: StatisticsTimeRange? = null,
     val chartPeriod: StatisticsPeriod? = null,
+    val chartDataEndDateEpochMillis: Long? = null,
     val chartCurrencyCode: String = "",
     val chartBreakdown: StatisticsChartBreakdown? = null,
     val revenueTarget: CachedRevenueTarget? = null,
@@ -392,7 +400,10 @@ data class StatsUiState(
         get() = report != null
 
     val hasVisibleChart: Boolean
-        get() = chartBars.isNotEmpty() && chartTimeRange != null && chartPeriod != null
+        get() = chartBars.isNotEmpty() &&
+                chartTimeRange != null &&
+                chartPeriod != null &&
+                chartDataEndDateEpochMillis != null
 
     val shouldRequestAuthorization: Boolean
         get() = needsAuthorization && isOnline && accountName != null
@@ -473,6 +484,7 @@ internal fun StatsUiState.retainChartWhileLoading(previous: StatsUiState): Stats
         chartBars = previous.chartBars,
         chartTimeRange = previous.chartTimeRange,
         chartPeriod = previous.chartPeriod,
+        chartDataEndDateEpochMillis = previous.chartDataEndDateEpochMillis,
         chartCurrencyCode = previous.chartCurrencyCode,
         chartBreakdown = previous.chartBreakdown?.takeIf { breakdown ->
             showBreakdown && breakdown.dimension == breakdownDimension

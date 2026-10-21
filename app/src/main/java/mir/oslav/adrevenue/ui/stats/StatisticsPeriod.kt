@@ -105,6 +105,34 @@ internal fun calculateStatisticsPeriod(
     )
 }
 
+/**
+ * Expands a today-capped report period to the calendar boundary used by the chart.
+ *
+ * The report request must stop at today, while the chart still needs future empty buckets so the
+ * bars keep their position within the selected week, month, quarter, or year.
+ */
+internal fun expandStatisticsPeriodForChart(
+    timeRange: StatisticsTimeRange,
+    period: StatisticsPeriod,
+): StatisticsPeriod {
+    val timeZone = TimeZone.getTimeZone(AdMobApiConstants.ReportTimeZone)
+    val fullPeriodEnd = reportCalendar(period.startDateEpochMillis, timeZone).apply {
+        when (timeRange) {
+            StatisticsTimeRange.Week -> add(Calendar.DAY_OF_MONTH, DAYS_PER_WEEK)
+            StatisticsTimeRange.Month -> add(Calendar.MONTH, 1)
+            StatisticsTimeRange.Quarter -> add(Calendar.MONTH, MONTHS_PER_QUARTER)
+            StatisticsTimeRange.Year -> add(Calendar.YEAR, 1)
+        }
+        add(Calendar.DAY_OF_MONTH, -1)
+    }.timeInMillis
+
+    return if (period.endDateEpochMillis >= fullPeriodEnd) {
+        period
+    } else {
+        period.copy(endDateEpochMillis = fullPeriodEnd)
+    }
+}
+
 internal fun buildStatisticsChartBars(
     rows: List<AdMobReportRow>,
     timeRange: StatisticsTimeRange,

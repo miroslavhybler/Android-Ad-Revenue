@@ -57,6 +57,7 @@ internal fun StatisticsRevenueChartCard(
     bars: List<StatisticsChartBar>,
     timeRange: StatisticsTimeRange,
     period: StatisticsPeriod,
+    dataEndDateEpochMillis: Long,
     currencyCode: String,
     showTrend: Boolean,
     showBreakdown: Boolean,
@@ -122,7 +123,12 @@ internal fun StatisticsRevenueChartCard(
     val maxValue = maxOf(0.0, chartBoundValues.maxOrNull() ?: 0.0)
         .takeUnless { value -> value == 0.0 && minValue == 0.0 }
         ?: EMPTY_CHART_MAX_VALUE
-    val trendAmount = revenueValues.takeIf { values -> values.isNotEmpty() }?.average() ?: 0.0
+    val trendAmount = remember(bars, dataEndDateEpochMillis) {
+        calculateStatisticsTrendAmount(
+            bars = bars,
+            dataEndDateEpochMillis = dataEndDateEpochMillis,
+        )
+    }
     val totalMicros = bars.sumOf { bar -> bar.estimatedEarningsMicros }
     val dataDescription = bars.joinToString(separator = ", ") { bar ->
         val label = formatStatisticsBarLabel(bar = bar, timeRange = timeRange)
@@ -396,6 +402,17 @@ internal fun StatisticsRevenueChartCard(
     }
 }
 
+internal fun calculateStatisticsTrendAmount(
+    bars: List<StatisticsChartBar>,
+    dataEndDateEpochMillis: Long,
+): Double {
+    val elapsedValues = bars.asSequence()
+        .filter { bar -> bar.startDateEpochMillis <= dataEndDateEpochMillis }
+        .map { bar -> bar.estimatedEarningsMicros / MICROS_PER_CURRENCY_UNIT }
+        .toList()
+    return elapsedValues.takeIf { values -> values.isNotEmpty() }?.average() ?: 0.0
+}
+
 @Composable
 private fun StatisticsChartSeriesLegend(series: List<StatisticsChartSeries>) {
     Row(
@@ -456,7 +473,7 @@ private val STATISTICS_CHART_HEIGHT = 260.dp
 private val STATISTICS_CHART_PLOT_HEIGHT = 210.dp
 private val STATISTICS_CHART_INDICATOR_PADDING = 48.dp
 private val STATISTICS_CHART_BAR_SPACING = 6.dp
-private val STATISTICS_CHART_BAR_RADIUS = 5.dp
+internal val STATISTICS_CHART_BAR_RADIUS = 5.dp
 private val STATISTICS_CHART_LABEL_PADDING = 8.dp
 private val STATISTICS_TREND_LINE_WIDTH = 2.dp
 private val STATISTICS_TARGET_LINE_WIDTH = 2.dp
