@@ -46,13 +46,17 @@
     <string name="navigation_statistics">Statistics</string>
     <string name="navigation_account">Account</string>
     <string name="statistics_title">Statistics</string>
+    <string name="statistics_range_today">Today</string>
     <string name="statistics_range_week">Week</string>
     <string name="statistics_range_month">Month</string>
     <string name="statistics_range_quarter">Quarter</string>
     <string name="statistics_range_year">Year</string>
     <string name="statistics_previous_period">Previous period</string>
     <string name="statistics_next_period">Next period</string>
+    <string name="statistics_refresh">Refresh statistics</string>
+    <string name="statistics_report_context">AdMob Network · %1$s</string>
     <string name="statistics_date_range">%1$s – %2$s</string>
+    <string name="statistics_data_through">Report through %1$s</string>
     <string name="statistics_chart_content_description">Estimated earnings chart. %1$s</string>
     <string name="statistics_chart_data_point">%1$s: %2$s</string>
     <string name="statistics_show_trend">Show trend</string>

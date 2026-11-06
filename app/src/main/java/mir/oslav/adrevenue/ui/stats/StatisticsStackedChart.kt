@@ -46,6 +46,7 @@ import kotlin.math.min
 internal fun StatisticsStackedColumnChart(
     breakdown: StatisticsChartBreakdown,
     timeRange: StatisticsTimeRange,
+    reportingTimeZone: String,
     currencyCode: String,
     minValue: Double,
     maxValue: Double,
@@ -159,6 +160,7 @@ internal fun StatisticsStackedColumnChart(
                     estimatedEarningsMicros = 0L,
                 ),
                 timeRange = timeRange,
+                reportingTimeZone = reportingTimeZone,
             )
             val measured = textMeasurer.measure(text = label, style = indicatorTextStyle)
             val centerX = layout.barCenter(index = index, barCount = breakdown.bars.size)

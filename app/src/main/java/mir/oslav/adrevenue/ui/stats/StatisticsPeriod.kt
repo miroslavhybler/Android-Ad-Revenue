@@ -3,9 +3,12 @@ package mir.oslav.adrevenue.ui.stats
 import java.util.Calendar
 import java.util.TimeZone
 import mir.oslav.adrevenue.core.AdMobApiConstants
+import mir.oslav.adrevenue.core.adMobReportTimeZone
+import mir.oslav.adrevenue.core.normalizeAdMobReportTimeZone
 import mir.oslav.adrevenue.data.model.AdMobReportRow
 
 enum class StatisticsTimeRange {
+    Today,
     Week,
     Month,
     Quarter,
@@ -21,6 +24,7 @@ enum class StatisticsBreakdownDimension {
 data class StatisticsPeriod(
     val startDateEpochMillis: Long,
     val endDateEpochMillis: Long,
+    val reportingTimeZone: String = AdMobApiConstants.FallbackReportTimeZone,
 )
 
 data class StatisticsChartBar(
@@ -54,14 +58,18 @@ internal fun calculateStatisticsPeriod(
     timeRange: StatisticsTimeRange,
     periodOffset: Int,
     anchorEpochMillis: Long,
+    reportingTimeZone: String = AdMobApiConstants.FallbackReportTimeZone,
 ): StatisticsPeriod {
     require(periodOffset <= 0) { "Statistics cannot request a future period." }
 
-    val timeZone = TimeZone.getTimeZone(AdMobApiConstants.ReportTimeZone)
+    val normalizedTimeZone = normalizeAdMobReportTimeZone(timeZoneId = reportingTimeZone)
+    val timeZone = adMobReportTimeZone(timeZoneId = normalizedTimeZone)
     val today = reportCalendar(epochMillis = anchorEpochMillis, timeZone = timeZone)
     val start = today.copyCalendar()
 
     when (timeRange) {
+        StatisticsTimeRange.Today -> start.add(Calendar.DAY_OF_MONTH, periodOffset)
+
         StatisticsTimeRange.Week -> {
             val daysSinceMonday = (start.get(Calendar.DAY_OF_WEEK) - Calendar.MONDAY + 7) % 7
             start.add(Calendar.DAY_OF_MONTH, -daysSinceMonday)
@@ -88,6 +96,7 @@ internal fun calculateStatisticsPeriod(
 
     val end = start.copyCalendar().apply {
         when (timeRange) {
+            StatisticsTimeRange.Today -> add(Calendar.DAY_OF_MONTH, 1)
             StatisticsTimeRange.Week -> add(Calendar.DAY_OF_MONTH, DAYS_PER_WEEK)
             StatisticsTimeRange.Month -> add(Calendar.MONTH, 1)
             StatisticsTimeRange.Quarter -> add(Calendar.MONTH, MONTHS_PER_QUARTER)
@@ -102,6 +111,7 @@ internal fun calculateStatisticsPeriod(
     return StatisticsPeriod(
         startDateEpochMillis = start.timeInMillis,
         endDateEpochMillis = end.timeInMillis,
+        reportingTimeZone = normalizedTimeZone,
     )
 }
 
@@ -115,9 +125,10 @@ internal fun expandStatisticsPeriodForChart(
     timeRange: StatisticsTimeRange,
     period: StatisticsPeriod,
 ): StatisticsPeriod {
-    val timeZone = TimeZone.getTimeZone(AdMobApiConstants.ReportTimeZone)
+    val timeZone = adMobReportTimeZone(timeZoneId = period.reportingTimeZone)
     val fullPeriodEnd = reportCalendar(period.startDateEpochMillis, timeZone).apply {
         when (timeRange) {
+            StatisticsTimeRange.Today -> add(Calendar.DAY_OF_MONTH, 1)
             StatisticsTimeRange.Week -> add(Calendar.DAY_OF_MONTH, DAYS_PER_WEEK)
             StatisticsTimeRange.Month -> add(Calendar.MONTH, 1)
             StatisticsTimeRange.Quarter -> add(Calendar.MONTH, MONTHS_PER_QUARTER)
@@ -194,13 +205,14 @@ private fun buildStatisticsBuckets(
     timeRange: StatisticsTimeRange,
     period: StatisticsPeriod,
 ): List<StatisticsPeriod> {
-    val timeZone = TimeZone.getTimeZone(AdMobApiConstants.ReportTimeZone)
+    val timeZone = adMobReportTimeZone(timeZoneId = period.reportingTimeZone)
     val periodEnd = reportCalendar(period.endDateEpochMillis, timeZone)
     val bucketStarts = generateSequence(
         seed = reportCalendar(period.startDateEpochMillis, timeZone),
     ) { previous ->
         previous.copyCalendar().apply {
             when (timeRange) {
+                StatisticsTimeRange.Today,
                 StatisticsTimeRange.Week -> add(Calendar.DAY_OF_MONTH, 1)
                 StatisticsTimeRange.Month,
                 StatisticsTimeRange.Quarter -> add(Calendar.DAY_OF_MONTH, DAYS_PER_WEEK)
@@ -212,6 +224,7 @@ private fun buildStatisticsBuckets(
     return bucketStarts.map { start ->
         val end = start.copyCalendar().apply {
             when (timeRange) {
+                StatisticsTimeRange.Today,
                 StatisticsTimeRange.Week -> Unit
                 StatisticsTimeRange.Month,
                 StatisticsTimeRange.Quarter -> add(Calendar.DAY_OF_MONTH, DAYS_PER_WEEK - 1)
@@ -228,6 +241,7 @@ private fun buildStatisticsBuckets(
         StatisticsPeriod(
             startDateEpochMillis = start.timeInMillis,
             endDateEpochMillis = end.timeInMillis,
+            reportingTimeZone = period.reportingTimeZone,
         )
     }.toList()
 }

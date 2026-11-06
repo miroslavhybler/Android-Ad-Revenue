@@ -2,6 +2,7 @@ package mir.oslav.adrevenue.data.cache
 
 import androidx.annotation.Keep
 import kotlinx.serialization.Serializable
+import mir.oslav.adrevenue.core.AdMobApiConstants
 import mir.oslav.adrevenue.data.model.AdMobNetworkReport
 
 @Keep
@@ -12,4 +13,5 @@ data class CachedStatisticsReport(
     val endDateEpochMillis: Long,
     val report: AdMobNetworkReport,
     val refreshedAtEpochMillis: Long,
+    val reportingTimeZone: String = AdMobApiConstants.FallbackReportTimeZone,
 )

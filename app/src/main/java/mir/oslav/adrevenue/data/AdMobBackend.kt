@@ -23,6 +23,7 @@ interface AdMobBackend {
     suspend fun generateNetworkReport(
         accessToken: String,
         accountName: String,
+        reportingTimeZone: String,
         startDateEpochMillis: Long? = null,
         endDateEpochMillis: Long? = null,
         includeAppDimension: Boolean = false,

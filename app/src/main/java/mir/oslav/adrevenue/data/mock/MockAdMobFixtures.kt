@@ -21,9 +21,13 @@ object MockAdMobFixtures {
         AdMobApp("ca-app-pub-mock~two", "com.example.mock.two", "Fitness App"),
     )
 
-    fun report(startDateEpochMillis: Long = Calendar.getInstance().apply {
-        add(Calendar.DAY_OF_MONTH, -29)
-    }.timeInMillis, includeAppDimension: Boolean = true): AdMobNetworkReport {
+    fun report(
+        startDateEpochMillis: Long = Calendar.getInstance().apply {
+            add(Calendar.DAY_OF_MONTH, -29)
+        }.timeInMillis,
+        includeAppDimension: Boolean = true,
+        reportingTimeZone: String = account.reportingTimeZone,
+    ): AdMobNetworkReport {
         val rows = (0..29).flatMap { index ->
             val date = startDateEpochMillis + index * 86_400_000L
             apps.flatMapIndexed { appIndex, app ->
@@ -50,6 +54,12 @@ object MockAdMobFixtures {
                 estimatedEarningsMicros = values.sumOf { it.estimatedEarningsMicros ?: 0L },
                 appName = null, appId = null,
             ) }
-        return AdMobNetworkReport("USD", "Mock period", outputRows.size, outputRows)
+        return AdMobNetworkReport(
+            currencyCode = "USD",
+            dateRangeLabel = "Mock period",
+            matchingRowCount = outputRows.size,
+            rows = outputRows,
+            reportingTimeZone = reportingTimeZone,
+        )
     }
 }

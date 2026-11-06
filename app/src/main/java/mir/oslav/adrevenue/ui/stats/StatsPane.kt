@@ -15,6 +15,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowBack
 import androidx.compose.material.icons.automirrored.outlined.ArrowForward
+import androidx.compose.material.icons.outlined.Refresh
 import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material3.AssistChip
 import androidx.compose.material3.Card
@@ -35,6 +36,7 @@ import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -86,6 +88,7 @@ fun StatsPane(
         onShowTrendChanged = viewModel::setShowTrend,
         onShowBreakdownChanged = viewModel::setShowBreakdown,
         onBreakdownDimensionSelected = viewModel::selectBreakdownDimension,
+        onRefresh = viewModel::refresh,
         onOpenTargetSettings = { isTargetDialogVisible = true },
         modifier = modifier,
     )
@@ -119,9 +122,25 @@ private fun StatsPaneImpl(
     onShowTrendChanged: (Boolean) -> Unit,
     onShowBreakdownChanged: (Boolean) -> Unit,
     onBreakdownDimensionSelected: (StatisticsBreakdownDimension) -> Unit,
+    onRefresh: () -> Unit,
     onOpenTargetSettings: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    val selectedCalendarPeriod = remember(state.timeRange, state.period) {
+        expandStatisticsPeriodForChart(
+            timeRange = state.timeRange,
+            period = state.period,
+        )
+    }
+    val selectedPeriodStart = formatStatisticsDate(
+        epochMillis = selectedCalendarPeriod.startDateEpochMillis,
+        reportingTimeZone = selectedCalendarPeriod.reportingTimeZone,
+    )
+    val selectedPeriodEnd = formatStatisticsDate(
+        epochMillis = selectedCalendarPeriod.endDateEpochMillis,
+        reportingTimeZone = selectedCalendarPeriod.reportingTimeZone,
+    )
+
     Scaffold(
         modifier = modifier.fillMaxSize(),
         topBar = {
@@ -134,6 +153,17 @@ private fun StatsPaneImpl(
                         )
                     },
                     actions = {
+                        IconButton(
+                            onClick = onRefresh,
+                            enabled = state.accountName != null && state.isOnline && !state.isLoading,
+                        ) {
+                            Icon(
+                                imageVector = Icons.Outlined.Refresh,
+                                contentDescription = stringResource(
+                                    id = R.string.statistics_refresh,
+                                ),
+                            )
+                        }
                         IconButton(
                             onClick = onOpenTargetSettings,
                             enabled = state.accountName != null,
@@ -188,6 +218,7 @@ private fun StatsPaneImpl(
                                 Text(
                                     text = stringResource(
                                         id = when (timeRange) {
+                                            StatisticsTimeRange.Today -> R.string.statistics_range_today
                                             StatisticsTimeRange.Week -> R.string.statistics_range_week
                                             StatisticsTimeRange.Month -> R.string.statistics_range_month
                                             StatisticsTimeRange.Quarter -> R.string.statistics_range_quarter
@@ -223,19 +254,36 @@ private fun StatsPaneImpl(
                         horizontalAlignment = Alignment.CenterHorizontally,
                     ) {
                         Text(
-                            text = stringResource(
-                                id = R.string.statistics_date_range,
-                                formatStatisticsDate(
-                                    epochMillis = state.period.startDateEpochMillis,
-                                ),
-                                formatStatisticsDate(
-                                    epochMillis = state.period.endDateEpochMillis,
-                                ),
-                            ),
+                            text = if (selectedPeriodStart == selectedPeriodEnd) {
+                                selectedPeriodStart
+                            } else {
+                                stringResource(
+                                    id = R.string.statistics_date_range,
+                                    selectedPeriodStart,
+                                    selectedPeriodEnd,
+                                )
+                            },
                             style = MaterialTheme.typography.titleSmall,
                             fontWeight = FontWeight.SemiBold,
                             textAlign = TextAlign.Center,
                         )
+                        if (
+                            state.accountName != null &&
+                            state.period.endDateEpochMillis <
+                            selectedCalendarPeriod.endDateEpochMillis
+                        ) {
+                            Text(
+                                text = stringResource(
+                                    id = R.string.statistics_data_through,
+                                    formatStatisticsDate(
+                                        epochMillis = state.period.endDateEpochMillis,
+                                        reportingTimeZone = state.period.reportingTimeZone,
+                                    ),
+                                ),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
                         state.refreshedAtEpochMillis?.let { refreshedAt ->
                             Text(
                                 text = stringResource(
@@ -244,6 +292,17 @@ private fun StatsPaneImpl(
                                 ),
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
+                        if (state.accountName != null) {
+                            Text(
+                                text = stringResource(
+                                    id = R.string.statistics_report_context,
+                                    state.period.reportingTimeZone,
+                                ),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                textAlign = TextAlign.Center,
                             )
                         }
                     }
@@ -419,6 +478,7 @@ private fun StatsPanePreview() {
     PreviewContainer {
         StatsPaneImpl(
             state = StatsUiState(
+                timeRange = StatisticsTimeRange.Week,
                 period = StatisticsPeriod(
                     startDateEpochMillis = 1_787_126_400_000,
                     endDateEpochMillis = 1_787_644_800_000,
@@ -434,6 +494,7 @@ private fun StatsPanePreview() {
                             dateLabel = formatStatisticsBarLabel(
                                 bar = bar,
                                 timeRange = StatisticsTimeRange.Week,
+                                reportingTimeZone = "America/Los_Angeles",
                             ),
                             estimatedEarningsMicros = bar.estimatedEarningsMicros,
                             impressions = null,
@@ -479,6 +540,7 @@ private fun StatsPanePreview() {
             onShowTrendChanged = {},
             onShowBreakdownChanged = {},
             onBreakdownDimensionSelected = {},
+            onRefresh = {},
             onOpenTargetSettings = {},
         )
     }

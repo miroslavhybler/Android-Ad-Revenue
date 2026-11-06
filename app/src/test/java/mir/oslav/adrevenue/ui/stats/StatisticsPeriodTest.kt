@@ -1,6 +1,7 @@
 package mir.oslav.adrevenue.ui.stats
 
 import java.util.Calendar
+import java.util.Locale
 import java.util.TimeZone
 import mir.oslav.adrevenue.core.AdMobApiConstants
 import mir.oslav.adrevenue.data.cache.CachedRevenueTarget
@@ -36,6 +37,118 @@ class StatisticsPeriodTest {
             reportDate(year = 2026, month = Calendar.AUGUST, day = 27),
             period.endDateEpochMillis,
         )
+    }
+
+    @Test
+    fun today_usesTheAccountReportingTimeZoneAndBuildsOneBar() {
+        val anchorEpochMillis = utcDate(
+            year = 2026,
+            month = Calendar.AUGUST,
+            day = 25,
+            hour = 6,
+            minute = 30,
+        )
+
+        val praguePeriod = calculateStatisticsPeriod(
+            timeRange = StatisticsTimeRange.Today,
+            periodOffset = 0,
+            anchorEpochMillis = anchorEpochMillis,
+            reportingTimeZone = "Europe/Prague",
+        )
+        val losAngelesPeriod = calculateStatisticsPeriod(
+            timeRange = StatisticsTimeRange.Today,
+            periodOffset = 0,
+            anchorEpochMillis = anchorEpochMillis,
+            reportingTimeZone = "America/Los_Angeles",
+        )
+
+        assertEquals("Europe/Prague", praguePeriod.reportingTimeZone)
+        assertEquals(
+            reportDate(
+                year = 2026,
+                month = Calendar.AUGUST,
+                day = 25,
+                reportingTimeZone = "Europe/Prague",
+            ),
+            praguePeriod.startDateEpochMillis,
+        )
+        assertEquals(
+            reportDate(
+                year = 2026,
+                month = Calendar.AUGUST,
+                day = 24,
+                reportingTimeZone = "America/Los_Angeles",
+            ),
+            losAngelesPeriod.startDateEpochMillis,
+        )
+        assertEquals(
+            1,
+            buildStatisticsChartBars(
+                rows = emptyList(),
+                timeRange = StatisticsTimeRange.Today,
+                period = expandStatisticsPeriodForChart(
+                    timeRange = StatisticsTimeRange.Today,
+                    period = praguePeriod,
+                ),
+            ).size,
+        )
+    }
+
+    @Test
+    fun chartLabels_useTheReportTimeZoneAtDayBoundaries() {
+        val previousLocale = Locale.getDefault()
+        try {
+            Locale.setDefault(Locale.US)
+            val instant = utcDate(
+                year = 2026,
+                month = Calendar.AUGUST,
+                day = 25,
+                hour = 6,
+                minute = 30,
+            )
+            val bar = StatisticsChartBar(
+                startDateEpochMillis = instant,
+                endDateEpochMillis = instant,
+                estimatedEarningsMicros = 0L,
+            )
+
+            assertEquals(
+                "Aug 25",
+                formatStatisticsBarLabel(
+                    bar = bar,
+                    timeRange = StatisticsTimeRange.Today,
+                    reportingTimeZone = "Europe/Prague",
+                ),
+            )
+            assertEquals(
+                "Aug 24",
+                formatStatisticsBarLabel(
+                    bar = bar,
+                    timeRange = StatisticsTimeRange.Today,
+                    reportingTimeZone = "America/Los_Angeles",
+                ),
+            )
+        } finally {
+            Locale.setDefault(previousLocale)
+        }
+    }
+
+    @Test
+    fun moneyFormatting_usesTheLocalizedAccountCurrencyPresentation() {
+        val previousLocale = Locale.getDefault()
+        try {
+            Locale.setDefault(Locale.forLanguageTag("cs-CZ"))
+
+            val formatted = formatStatisticsMoney(
+                micros = 3_100_000L,
+                currencyCode = "CZK",
+            )
+
+            assertTrue(formatted.startsWith("3,10"))
+            assertTrue(formatted.contains("Kč"))
+        } finally {
+            Locale.setDefault(previousLocale)
+        }
     }
 
     @Test
@@ -443,9 +556,25 @@ class StatisticsPeriodTest {
         adFormat = adFormat,
     )
 
-    private fun reportDate(year: Int, month: Int, day: Int): Long =
-        Calendar.getInstance(TimeZone.getTimeZone(AdMobApiConstants.ReportTimeZone)).apply {
+    private fun reportDate(
+        year: Int,
+        month: Int,
+        day: Int,
+        reportingTimeZone: String = AdMobApiConstants.FallbackReportTimeZone,
+    ): Long =
+        Calendar.getInstance(TimeZone.getTimeZone(reportingTimeZone)).apply {
             clear()
             set(year, month, day, 0, 0, 0)
         }.timeInMillis
+
+    private fun utcDate(
+        year: Int,
+        month: Int,
+        day: Int,
+        hour: Int,
+        minute: Int,
+    ): Long = Calendar.getInstance(TimeZone.getTimeZone("UTC")).apply {
+        clear()
+        set(year, month, day, hour, minute, 0)
+    }.timeInMillis
 }

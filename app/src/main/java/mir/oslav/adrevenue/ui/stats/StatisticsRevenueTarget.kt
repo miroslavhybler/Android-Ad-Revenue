@@ -1,8 +1,7 @@
 package mir.oslav.adrevenue.ui.stats
 
 import java.util.Calendar
-import java.util.TimeZone
-import mir.oslav.adrevenue.core.AdMobApiConstants
+import mir.oslav.adrevenue.core.adMobReportTimeZone
 import mir.oslav.adrevenue.data.cache.CachedRevenueTarget
 
 data class StatisticsTargetProjection(
@@ -23,7 +22,7 @@ internal fun projectRevenueTarget(
     val dailyTargetMicros = target.amountMicros.toDouble() / target.rangeDays
     val fullRangeDays = fullStatisticsRangeDays(
         timeRange = timeRange,
-        startDateEpochMillis = period.startDateEpochMillis,
+        period = period,
     )
     val displayedDays = statisticsPeriodDays(period = period)
 
@@ -37,11 +36,15 @@ internal fun projectRevenueTarget(
 
 private fun fullStatisticsRangeDays(
     timeRange: StatisticsTimeRange,
-    startDateEpochMillis: Long,
+    period: StatisticsPeriod,
 ): Int {
-    val start = targetCalendar(epochMillis = startDateEpochMillis)
+    val start = targetCalendar(
+        epochMillis = period.startDateEpochMillis,
+        reportingTimeZone = period.reportingTimeZone,
+    )
     val endExclusive = start.copyTargetCalendar().apply {
         when (timeRange) {
+            StatisticsTimeRange.Today -> add(Calendar.DAY_OF_MONTH, 1)
             StatisticsTimeRange.Week -> add(Calendar.DAY_OF_MONTH, DAYS_PER_TARGET_WEEK)
             StatisticsTimeRange.Month -> add(Calendar.MONTH, 1)
             StatisticsTimeRange.Quarter -> add(Calendar.MONTH, MONTHS_PER_TARGET_QUARTER)
@@ -52,8 +55,14 @@ private fun fullStatisticsRangeDays(
 }
 
 private fun statisticsPeriodDays(period: StatisticsPeriod): Int {
-    val start = targetCalendar(epochMillis = period.startDateEpochMillis)
-    val endExclusive = targetCalendar(epochMillis = period.endDateEpochMillis).apply {
+    val start = targetCalendar(
+        epochMillis = period.startDateEpochMillis,
+        reportingTimeZone = period.reportingTimeZone,
+    )
+    val endExclusive = targetCalendar(
+        epochMillis = period.endDateEpochMillis,
+        reportingTimeZone = period.reportingTimeZone,
+    ).apply {
         add(Calendar.DAY_OF_MONTH, 1)
     }
     return countCalendarDays(start = start, endExclusive = endExclusive)
@@ -69,8 +78,8 @@ private fun countCalendarDays(start: Calendar, endExclusive: Calendar): Int {
     return dayCount
 }
 
-private fun targetCalendar(epochMillis: Long): Calendar =
-    Calendar.getInstance(TimeZone.getTimeZone(AdMobApiConstants.ReportTimeZone)).apply {
+private fun targetCalendar(epochMillis: Long, reportingTimeZone: String): Calendar =
+    Calendar.getInstance(adMobReportTimeZone(timeZoneId = reportingTimeZone)).apply {
         timeInMillis = epochMillis
         set(Calendar.HOUR_OF_DAY, 0)
         set(Calendar.MINUTE, 0)

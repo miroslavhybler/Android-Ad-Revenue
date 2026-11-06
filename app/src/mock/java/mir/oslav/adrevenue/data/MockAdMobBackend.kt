@@ -10,10 +10,12 @@ class MockAdMobBackend @Inject constructor() : AdMobBackend {
     override suspend fun listApps(accessToken: String, accountName: String) = MockAdMobFixtures.apps
 
     override suspend fun generateNetworkReport(
-        accessToken: String, accountName: String, startDateEpochMillis: Long?,
+        accessToken: String, accountName: String, reportingTimeZone: String,
+        startDateEpochMillis: Long?,
         endDateEpochMillis: Long?, includeAppDimension: Boolean,
     ): AdMobNetworkReport = MockAdMobFixtures.report(
         startDateEpochMillis = startDateEpochMillis ?: System.currentTimeMillis() - 29 * 86_400_000L,
         includeAppDimension = includeAppDimension,
+        reportingTimeZone = reportingTimeZone,
     )
 }

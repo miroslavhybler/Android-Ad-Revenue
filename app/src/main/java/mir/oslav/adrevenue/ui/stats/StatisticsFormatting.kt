@@ -3,14 +3,14 @@ package mir.oslav.adrevenue.ui.stats
 import java.text.DateFormat
 import java.text.NumberFormat
 import java.text.SimpleDateFormat
+import java.util.Currency
 import java.util.Date
 import java.util.Locale
-import java.util.TimeZone
-import mir.oslav.adrevenue.core.AdMobApiConstants
+import mir.oslav.adrevenue.core.adMobReportTimeZone
 
-internal fun formatStatisticsDate(epochMillis: Long): String {
+internal fun formatStatisticsDate(epochMillis: Long, reportingTimeZone: String): String {
     val formatter = DateFormat.getDateInstance(DateFormat.MEDIUM).apply {
-        timeZone = TimeZone.getTimeZone(AdMobApiConstants.ReportTimeZone)
+        timeZone = adMobReportTimeZone(timeZoneId = reportingTimeZone)
     }
     return formatter.format(Date(epochMillis))
 }
@@ -18,10 +18,11 @@ internal fun formatStatisticsDate(epochMillis: Long): String {
 internal fun formatStatisticsBarLabel(
     bar: StatisticsChartBar,
     timeRange: StatisticsTimeRange,
+    reportingTimeZone: String,
 ): String {
     val pattern = if (timeRange == StatisticsTimeRange.Year) "MMM" else "MMM d"
     return SimpleDateFormat(pattern, Locale.getDefault()).apply {
-        timeZone = TimeZone.getTimeZone(AdMobApiConstants.ReportTimeZone)
+        timeZone = adMobReportTimeZone(timeZoneId = reportingTimeZone)
     }.format(Date(bar.startDateEpochMillis))
 }
 
@@ -30,13 +31,19 @@ internal fun formatStatisticsMoney(micros: Long, currencyCode: String): String =
 
 internal fun formatStatisticsMoney(micros: Double, currencyCode: String): String {
     val amount = micros / MICROS_PER_CURRENCY_UNIT
-    val formatted = NumberFormat.getNumberInstance(Locale.getDefault()).apply {
+    val currency = currencyCode.takeIf { code -> code.isNotBlank() }
+        ?.let { code -> runCatching { Currency.getInstance(code) }.getOrNull() }
+    val formatter = if (currency == null) {
+        NumberFormat.getNumberInstance(Locale.getDefault())
+    } else {
+        NumberFormat.getCurrencyInstance(Locale.getDefault()).apply {
+            this.currency = currency
+        }
+    }
+    return formatter.apply {
         minimumFractionDigits = 2
         maximumFractionDigits = 2
     }.format(amount)
-    return listOf(currencyCode.takeIf { code -> code.isNotBlank() }, formatted)
-        .filterNotNull()
-        .joinToString(separator = " ")
 }
 
 internal fun formatStatisticsChartAmount(value: Double): String =

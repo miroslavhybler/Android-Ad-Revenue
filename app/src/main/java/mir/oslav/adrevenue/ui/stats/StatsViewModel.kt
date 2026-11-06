@@ -38,6 +38,7 @@ class StatsViewModel @Inject constructor(
     private val iconResolver: PlayStoreIconResolver,
 ) : ViewModel() {
     private val selection = MutableStateFlow(StatisticsSelection())
+    private val refreshGeneration = MutableStateFlow(0L)
     private val operationState = MutableStateFlow(StatisticsOperationState())
     private val isPaneActive = MutableStateFlow(false)
     private val isOnline = networkMonitor.isOnline
@@ -49,7 +50,7 @@ class StatsViewModel @Inject constructor(
         )
 
     private val initialUiState = StatsUiState(
-        period = selection.value.toPeriod(),
+        period = selection.value.toPeriod(reportingTimeZone = ""),
     )
     private val baseUiState = combine(
         flow = repository.snapshot,
@@ -57,7 +58,9 @@ class StatsViewModel @Inject constructor(
         flow3 = selection,
         flow4 = operationState,
     ) { snapshot, online, selectedPeriod, operation ->
-        val period = selectedPeriod.toPeriod()
+        val period = selectedPeriod.toPeriod(
+            reportingTimeZone = snapshot.selectedAccount?.reportingTimeZone.orEmpty(),
+        )
         val chartPeriod = expandStatisticsPeriodForChart(
             timeRange = selectedPeriod.timeRange,
             period = period,
@@ -165,22 +168,29 @@ class StatsViewModel @Inject constructor(
 
         viewModelScope.launch {
             combine(
-                selection
-                    .map { selectedPeriod -> selectedPeriod.toPeriod() }
+                combine(selection, refreshGeneration) { selectedPeriod, generation ->
+                    StatisticsRefreshSelection(
+                        selection = selectedPeriod,
+                        generation = generation,
+                    )
+                }
                     .distinctUntilChanged(),
                 repository.snapshot
-                    .map { snapshot -> snapshot.selectedAccountName }
+                    .map { snapshot -> snapshot.selectedAccount }
                     .distinctUntilChanged(),
                 authSession.accessToken,
                 isOnline,
                 isPaneActive,
-            ) { period, accountName, accessToken, online, paneActive ->
+            ) { refreshSelection, account, accessToken, online, paneActive ->
                 StatisticsLoadRequest(
-                    period = period,
-                    accountName = accountName,
+                    period = refreshSelection.selection.toPeriod(
+                        reportingTimeZone = account?.reportingTimeZone.orEmpty(),
+                    ),
+                    accountName = account?.name,
                     accessToken = accessToken,
                     isOnline = online,
                     isPaneActive = paneActive,
+                    refreshGeneration = refreshSelection.generation,
                 )
             }
                 .filter { request -> request.isPaneActive }
@@ -213,7 +223,21 @@ class StatsViewModel @Inject constructor(
     }
 
     fun setPaneActive(active: Boolean) {
+        if (active && !isPaneActive.value) {
+            selection.update { current ->
+                current.copy(anchorEpochMillis = System.currentTimeMillis())
+            }
+        }
         isPaneActive.value = active
+    }
+
+    fun refresh() {
+        if (!isPaneActive.value || !isOnline.value) return
+        operationState.update { state -> state.copy(isLoading = true, message = null) }
+        selection.update { current ->
+            current.copy(anchorEpochMillis = System.currentTimeMillis())
+        }
+        refreshGeneration.update { generation -> generation + 1L }
     }
 
     fun selectTimeRange(timeRange: StatisticsTimeRange) {
@@ -369,7 +393,7 @@ class StatsViewModel @Inject constructor(
 }
 
 data class StatsUiState(
-    val timeRange: StatisticsTimeRange = StatisticsTimeRange.Week,
+    val timeRange: StatisticsTimeRange = StatisticsTimeRange.Today,
     val periodOffset: Int = 0,
     val period: StatisticsPeriod,
     val showTrend: Boolean = false,
@@ -424,19 +448,25 @@ data class StatisticsContribution(
 )
 
 private data class StatisticsSelection(
-    val timeRange: StatisticsTimeRange = StatisticsTimeRange.Week,
+    val timeRange: StatisticsTimeRange = StatisticsTimeRange.Today,
     val periodOffset: Int = 0,
     val anchorEpochMillis: Long = System.currentTimeMillis(),
     val showTrend: Boolean = false,
     val showBreakdown: Boolean = false,
     val breakdownDimension: StatisticsBreakdownDimension = StatisticsBreakdownDimension.App,
 ) {
-    fun toPeriod(): StatisticsPeriod = calculateStatisticsPeriod(
+    fun toPeriod(reportingTimeZone: String): StatisticsPeriod = calculateStatisticsPeriod(
         timeRange = timeRange,
         periodOffset = periodOffset,
         anchorEpochMillis = anchorEpochMillis,
+        reportingTimeZone = reportingTimeZone,
     )
 }
+
+private data class StatisticsRefreshSelection(
+    val selection: StatisticsSelection,
+    val generation: Long,
+)
 
 private data class StatisticsOperationState(
     val isLoading: Boolean = false,
@@ -451,6 +481,7 @@ private data class StatisticsLoadRequest(
     val accessToken: String?,
     val isOnline: Boolean,
     val isPaneActive: Boolean,
+    val refreshGeneration: Long,
 )
 
 private fun CachedAdMobSnapshot.findStatisticsReport(
@@ -460,7 +491,8 @@ private fun CachedAdMobSnapshot.findStatisticsReport(
     return statisticsReports.firstOrNull { cached ->
         cached.accountName == accountName &&
                 cached.startDateEpochMillis == period.startDateEpochMillis &&
-                cached.endDateEpochMillis == period.endDateEpochMillis
+                cached.endDateEpochMillis == period.endDateEpochMillis &&
+                cached.reportingTimeZone == period.reportingTimeZone
     }
 }
 

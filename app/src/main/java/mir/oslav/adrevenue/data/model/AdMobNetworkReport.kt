@@ -2,6 +2,7 @@ package mir.oslav.adrevenue.data.model
 
 import androidx.annotation.Keep
 import kotlinx.serialization.Serializable
+import mir.oslav.adrevenue.core.AdMobApiConstants
 
 @Keep
 @Serializable
@@ -10,6 +11,7 @@ data class AdMobNetworkReport(
     val dateRangeLabel: String,
     val matchingRowCount: Int,
     val rows: List<AdMobReportRow>,
+    val reportingTimeZone: String = AdMobApiConstants.FallbackReportTimeZone,
 ) {
     val totalEstimatedEarningsMicros: Long = rows.sumOf { it.estimatedEarningsMicros ?: 0L }
     val totalImpressions: Long = rows.sumOf { it.impressions ?: 0L }

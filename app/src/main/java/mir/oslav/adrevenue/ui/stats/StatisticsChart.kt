@@ -76,9 +76,13 @@ internal fun StatisticsRevenueChartCard(
     val contentColor = MaterialTheme.colorScheme.onSurfaceVariant
     val popupContainerColor = MaterialTheme.colorScheme.inverseSurface
     val popupContentColor = MaterialTheme.colorScheme.inverseOnSurface
-    val chartData = remember(bars, timeRange, barColor) {
+    val chartData = remember(bars, timeRange, period.reportingTimeZone, barColor) {
         bars.map { bar ->
-            val label = formatStatisticsBarLabel(bar = bar, timeRange = timeRange)
+            val label = formatStatisticsBarLabel(
+                bar = bar,
+                timeRange = timeRange,
+                reportingTimeZone = period.reportingTimeZone,
+            )
             Bars(
                 label = label,
                 values = listOf(
@@ -131,7 +135,11 @@ internal fun StatisticsRevenueChartCard(
     }
     val totalMicros = bars.sumOf { bar -> bar.estimatedEarningsMicros }
     val dataDescription = bars.joinToString(separator = ", ") { bar ->
-        val label = formatStatisticsBarLabel(bar = bar, timeRange = timeRange)
+        val label = formatStatisticsBarLabel(
+            bar = bar,
+            timeRange = timeRange,
+            reportingTimeZone = period.reportingTimeZone,
+        )
         resources.getString(
             R.string.statistics_chart_data_point,
             label,
@@ -247,6 +255,7 @@ internal fun StatisticsRevenueChartCard(
                     StatisticsStackedColumnChart(
                         breakdown = breakdown,
                         timeRange = timeRange,
+                        reportingTimeZone = period.reportingTimeZone,
                         currencyCode = currencyCode,
                         minValue = minValue,
                         maxValue = maxValue,
@@ -302,6 +311,7 @@ internal fun StatisticsRevenueChartCard(
             targetProjection?.let { projection ->
                 val timeRangeLabel = stringResource(
                     id = when (timeRange) {
+                        StatisticsTimeRange.Today -> R.string.statistics_range_today
                         StatisticsTimeRange.Week -> R.string.statistics_range_week
                         StatisticsTimeRange.Month -> R.string.statistics_range_month
                         StatisticsTimeRange.Quarter -> R.string.statistics_range_quarter

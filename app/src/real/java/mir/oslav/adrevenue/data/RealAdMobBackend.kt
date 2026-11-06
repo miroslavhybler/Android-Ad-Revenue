@@ -24,17 +24,23 @@ class RealAdMobBackend @Inject constructor(
     override suspend fun generateNetworkReport(
         accessToken: String,
         accountName: String,
+        reportingTimeZone: String,
         startDateEpochMillis: Long?,
         endDateEpochMillis: Long?,
         includeAppDimension: Boolean,
     ): AdMobNetworkReport = if (startDateEpochMillis == null || endDateEpochMillis == null) {
-        api.generateNetworkReport(accessToken, accountName)
+        api.generateNetworkReport(
+            accessToken = accessToken,
+            accountName = accountName,
+            reportingTimeZone = reportingTimeZone,
+        )
     } else {
         api.generateNetworkReport(
             accessToken = accessToken,
             accountName = accountName,
             startDateEpochMillis = startDateEpochMillis,
             endDateEpochMillis = endDateEpochMillis,
+            reportingTimeZone = reportingTimeZone,
             includeAppDimension = includeAppDimension,
         )
     }

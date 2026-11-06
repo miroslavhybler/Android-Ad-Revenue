@@ -69,6 +69,7 @@ class AdMobRepository @Inject constructor(
             backend.generateNetworkReport(
                 accessToken = accessToken,
                 accountName = account.name,
+                reportingTimeZone = account.reportingTimeZone,
             )
         }
 
@@ -94,6 +95,7 @@ class AdMobRepository @Inject constructor(
         val report = backend.generateNetworkReport(
             accessToken = accessToken,
             accountName = account.name,
+            reportingTimeZone = account.reportingTimeZone,
         )
         val apps = backend.listApps(accessToken = accessToken, accountName = account.name)
 
@@ -113,12 +115,15 @@ class AdMobRepository @Inject constructor(
         startDateEpochMillis: Long,
         endDateEpochMillis: Long,
     ): CachedStatisticsReport {
-        val accountExists = _snapshot.value.accounts.any { account -> account.name == accountName }
-        require(value = accountExists) { "Unknown AdMob account." }
+        val account = _snapshot.value.accounts.firstOrNull { account ->
+            account.name == accountName
+        }
+        requireNotNull(value = account) { "Unknown AdMob account." }
 
         val report = backend.generateNetworkReport(
             accessToken = accessToken,
             accountName = accountName,
+            reportingTimeZone = account.reportingTimeZone,
             startDateEpochMillis = startDateEpochMillis,
             endDateEpochMillis = endDateEpochMillis,
             includeAppDimension = true,
@@ -129,6 +134,7 @@ class AdMobRepository @Inject constructor(
             endDateEpochMillis = endDateEpochMillis,
             report = report,
             refreshedAtEpochMillis = System.currentTimeMillis(),
+            reportingTimeZone = report.reportingTimeZone,
         )
         val current = _snapshot.value
         val updatedReports = buildList {
@@ -137,7 +143,8 @@ class AdMobRepository @Inject constructor(
                 current.statisticsReports.filterNot { cached ->
                     cached.accountName == accountName &&
                             cached.startDateEpochMillis == startDateEpochMillis &&
-                            cached.endDateEpochMillis == endDateEpochMillis
+                            cached.endDateEpochMillis == endDateEpochMillis &&
+                            cached.reportingTimeZone == report.reportingTimeZone
                 },
             )
         }.take(n = CacheConstants.MaxStatisticsReports)
